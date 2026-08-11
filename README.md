@@ -6,6 +6,16 @@
 
 Built with Electron + React + TypeScript.
 
+## Screenshots
+
+| Chat / Tools / Todo | Models & Providers |
+| --- | --- |
+| ![Chat](docs/screenshots/chat.png) | ![Models](docs/screenshots/models.png) |
+
+| Usage Stats | CLI Settings |
+| --- | --- |
+| ![Usage](docs/screenshots/usage.png) | ![CLI Settings](docs/screenshots/cli-settings.png) |
+
 ---
 
 ## Features
