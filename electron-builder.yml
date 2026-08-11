@@ -1,0 +1,20 @@
+appId: com.aiclihub.app
+productName: AI CLI Hub
+directories:
+  output: release-v15
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+  - build/service-relay.html
+extraResources:
+  - from: build/icon.ico
+    to: icon.ico
+win:
+  icon: build/icon.ico
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: AI CLI Hub
