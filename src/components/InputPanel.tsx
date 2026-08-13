@@ -30,7 +30,7 @@ function extractLatestTodos(task: Task): TodoItem[] | null {
   let latest: TodoItem[] | null = null;
   const clearedAt = task.todosClearedAt ?? 0;
   for (const msg of task.messages) {
-    if ((msg.ts ?? 0) <= clearedAt) continue; // 清空标记之前的待办不再显示
+    if (!msg.streaming && (msg.ts ?? 0) <= clearedAt) continue; // 清空标记之前的待办不再显示（流式消息始终算本轮）
     // 旧式 tool 消息
     if (msg.role === 'tool' && /^(todolist|todowrite|todo)$/i.test(msg.toolName ?? '')) {
       const t = parseTodos(msg.toolArgs);
@@ -72,7 +72,7 @@ function extractFileChanges(task: Task): FileChange[] {
     map.set(p, entry);
   };
   for (const msg of task.messages) {
-    if ((msg.ts ?? 0) <= clearedAt) continue; // 清空标记之前的变更不再显示
+    if (!msg.streaming && (msg.ts ?? 0) <= clearedAt) continue; // 清空标记之前的变更不再显示（流式消息始终算本轮）
     if (msg.role === 'tool') collect(msg.toolName ?? '', msg.toolArgs ?? '', msg.toolStatus ?? 'done');
     if (msg.blocks) {
       for (const b of msg.blocks) {

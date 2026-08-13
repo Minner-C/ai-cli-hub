@@ -8,8 +8,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Editor, { type OnMount } from '@monaco-editor/react';
-import { X, ExternalLink, Save, Undo2, Globe } from 'lucide-react';
+import { X, ExternalLink, Save, Undo2, Globe, BookOpen, Pencil, Code, Eye } from 'lucide-react';
 import { useHubStore } from '../store';
+import MarkdownView from './MarkdownView';
 import type { FilePreview } from '../../electron/filePreview';
 
 // 文件扩展名 -> Monaco 语言 ID 映射
@@ -53,6 +54,10 @@ export default function FilePreviewPanel({ embedded = false, path, cwd, tabId }:
   const [editText, setEditText] = useState('');
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Markdown 阅读器：默认阅读模式，可切编辑
+  const [mdMode, setMdMode] = useState<'read' | 'edit'>('read');
+  // HTML：默认渲染预览，可切源码
+  const [htmlMode, setHtmlMode] = useState<'preview' | 'source'>('preview');
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
   const saveFnRef = useRef<() => void>(() => {});
 
@@ -145,7 +150,11 @@ export default function FilePreviewPanel({ embedded = false, path, cwd, tabId }:
   const isImage = preview?.kind === 'image';
   const isVideo = preview?.kind === 'video';
   const isHtml = /\.html?$/i.test(path);
-  const canEdit = isText && !preview?.truncated;
+  const isMd = /\.(md|markdown)$/i.test(path);
+  const mdRead = isMd && mdMode === 'read';
+  // HTML 预览/源码切换（默认预览渲染）
+  const htmlPreview = isHtml && htmlMode === 'preview';
+  const canEdit = isText && !preview?.truncated && !mdRead && !htmlPreview;
 
   return (
     <div className="preview-panel">
@@ -153,6 +162,15 @@ export default function FilePreviewPanel({ embedded = false, path, cwd, tabId }:
         <span className="preview-path" title={path}>
           {path}
         </span>
+        {isMd && (
+          <button
+            className="icon-btn"
+            title={mdMode === 'read' ? t('preview.edit') : t('preview.read')}
+            onClick={() => setMdMode(mdMode === 'read' ? 'edit' : 'read')}
+          >
+            {mdMode === 'read' ? <Pencil size={14} /> : <BookOpen size={14} />}
+          </button>
+        )}
         {canEdit && (
           <>
             <button
@@ -175,13 +193,22 @@ export default function FilePreviewPanel({ embedded = false, path, cwd, tabId }:
           </>
         )}
         {isHtml && (
-          <button
-            className="icon-btn"
-            title={t('preview.inBrowser')}
-            onClick={() => setBrowserUrl('file:///' + path.replace(/\\/g, '/').replace(/^\//, ''))}
-          >
-            <Globe size={15} />
-          </button>
+          <>
+            <button
+              className="icon-btn"
+              title={htmlMode === 'preview' ? t('preview.source') : t('preview.preview')}
+              onClick={() => setHtmlMode(htmlMode === 'preview' ? 'source' : 'preview')}
+            >
+              {htmlMode === 'preview' ? <Code size={14} /> : <Eye size={14} />}
+            </button>
+            <button
+              className="icon-btn"
+              title={t('preview.inBrowser')}
+              onClick={() => setBrowserUrl('file:///' + path.replace(/\\/g, '/').replace(/^\//, ''))}
+            >
+              <Globe size={15} />
+            </button>
+          </>
         )}
         <button
           className="icon-btn"
@@ -195,12 +222,23 @@ export default function FilePreviewPanel({ embedded = false, path, cwd, tabId }:
         </button>
       </div>
 
-      <div className={`preview-body ${isText ? 'edit-mode' : ''}`}>
+      <div className={`preview-body ${isText && !mdRead ? 'edit-mode' : ''}`}>
         {!preview && <div className="hint">…</div>}
         {preview?.kind === 'error' && (
           <div className="hint">{t('preview.error')}: {preview.message}</div>
         )}
         {preview?.kind === 'binary' && <div className="hint">{t('preview.binary')}</div>}
+        {htmlPreview && (
+          <webview
+            className="preview-webview"
+            src={'file:///' + path.replace(/\\/g, '/').replace(/^\//, '')}
+          />
+        )}
+        {mdRead && preview?.kind === 'text' && (
+          <div className="md-reader">
+            <MarkdownView text={preview.content} cwd={cwd} />
+          </div>
+        )}
         {isImage && (
           <div className="preview-image-wrap">
             <img className="preview-img" src={preview.dataUrl} alt={path} />
@@ -240,7 +278,7 @@ export default function FilePreviewPanel({ embedded = false, path, cwd, tabId }:
             onMount={onMount}
           />
         )}
-        {isText && !canEdit && (
+        {isText && !canEdit && !mdRead && !htmlPreview && (
           <>
             <pre className="preview-code preview-source">{preview.content}</pre>
             <div className="hint">{t('preview.truncated')}</div>

@@ -20,6 +20,7 @@ import * as usageStore from './usageStore';
 import * as cliConfig from './cliConfigManager';
 import * as filePanel from './filePanel';
 import { runCommand } from './installer';
+import * as testRunner from './testRunner';
 import { safeSend } from './safeSend';
 import * as modelRegistry from './modelRegistry';
 import { syncCliCustomModel } from './cliModelAdapter';
@@ -274,9 +275,9 @@ function createWindow() {
     if (url.startsWith('file://') || url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) {
       return { action: 'allow' };
     }
-    // 外部链接一律丢给系统默认浏览器，避免在应用内打开成"浏览器"
+    // 外部 http 链接：通知渲染进程在右侧内置浏览器打开，拒绝独立窗口/主窗口导航
     if (url.startsWith('http:') || url.startsWith('https:')) {
-      void shell.openExternal(url);
+      safeSend(mainWindow?.webContents, 'browser:openUrl', url);
     }
     return { action: 'deny' };
   });
@@ -411,6 +412,22 @@ function createPersistOnEvent(taskId: string, retryText?: string) {
     if (ev.type === 'done') {
       flushAssistant(false);
       settleUsage();
+      // 目标模式：按 kimi -p /goal 退出码提示（0=完成、3=受阻、6=暂停）
+      if (ev.exitCode !== undefined) {
+        const t = taskStore.getTask(taskId);
+        if (t?.goalMode) {
+          const lang = getSettings().language;
+          const text = ev.exitCode === 0
+            ? (lang === 'zh' ? '目标已完成' : 'Goal completed')
+            : ev.exitCode === 3
+              ? (lang === 'zh' ? '目标受阻（需要人工介入）' : 'Goal blocked')
+              : ev.exitCode === 6
+                ? (lang === 'zh' ? '目标已暂停' : 'Goal paused')
+                : (lang === 'zh' ? `目标结束（退出码 ${ev.exitCode}）` : `Goal ended (exit ${ev.exitCode})`);
+          taskStore.appendMessage(taskId, newMsg('system', `[goal] ${text}`));
+          safeSend(mainWindow?.webContents, 'task:event', { type: 'system', text: `[goal] ${text}`, taskId });
+        }
+      }
       return;
     }
     if (ev.type === 'tool_result') ev.result = ev.result.slice(0, 4000);
@@ -475,6 +492,8 @@ function registerIpc() {
         })),
       }),
     );
+    // 新一轮对话开始：自动清空上一轮的待办清单（新 TodoList 调用会带更新的时间戳正常显示）
+    taskStore.updateTask(taskId, { todosClearedAt: Date.now() });
 
     // 消费切换 CLI 遗留的上下文注入
     const inject = pendingContext.get(taskId);
@@ -569,11 +588,14 @@ function registerIpc() {
             effort: task.effort,
             // ACP 权限模式实时下发，按 CLI 映射到各自 mode 值（kimi: default/auto/yolo；
             // claude: default/acceptEdits/bypassPermissions；gemini/qwen 各自变体）
+            // 计划模式是独立轴（kimi web 语义）：planMode 开启时覆盖为 plan，权限档保持不变
             // 优先级：任务级 > kimi config.toml 显式值 > 回退 auto
             permission: permission.acpModeValue(
               routeCli,
-              task.permission ??
-                (routeCli === 'kimi' ? (permission.readPermissionFromConfig('kimi') ?? 'auto') : 'auto'),
+              task.planMode || task.permission === 'plan'
+                ? 'plan'
+                : (task.permission ??
+                    (routeCli === 'kimi' ? (permission.readPermissionFromConfig('kimi') ?? 'auto') : 'auto')),
             ),
             // 传递 modelEntryId：ensure 会检测变化并自动重建连接（配置文件类 CLI 需重读配置）
             modelEntryId: task.modelEntryId,
@@ -654,6 +676,15 @@ function registerIpc() {
     }
   });
 
+  // 自动化测试
+  ipcMain.handle('test:run', async (_e, taskId: string, cwd: string, script: string, baseURL: string, headless: boolean) =>
+    testRunner.runTest(taskId, cwd, script, baseURL, headless, (chunk) => {
+      safeSend(mainWindow?.webContents, 'test:output', taskId, chunk);
+    }),
+  );
+  ipcMain.handle('test:stop', (_e, taskId: string) => testRunner.stopTest(taskId));
+  ipcMain.handle('test:loadScript', (_e, cwd: string) => testRunner.loadTestScript(cwd));
+  ipcMain.handle('test:saveScript', (_e, cwd: string, script: string) => testRunner.saveTestScript(cwd, script));
   ipcMain.handle('permission:respond', (_e, requestId: string, optionId: string | null) => {
     // 先试 ACP
     if (acp.respondPermission(requestId, optionId)) return true;
@@ -883,6 +914,7 @@ function registerIpc() {
         safeSend(mainWindow?.webContents, 'cli:installProgress', cliId, chunk);
       });
       const ok = result.code === 0;
+      if (ok) cliConfig.invalidateVersionCache(cliId); // 更新成功：清版本缓存，刷新检测拿新版本
       safeSend(mainWindow?.webContents, 'cli:installDone',
         cliId,
         ok,
@@ -974,6 +1006,19 @@ function registerIpc() {
     taskStore.updateTask(taskId, { effort: lvl });
   });
   ipcMain.handle('effort:support', (_e, cliId: CliId) => effort.effortSupport(cliId));
+  ipcMain.handle('task:setPlanMode', (_e, taskId: string, on: boolean) => {
+    taskStore.updateTask(taskId, { planMode: on });
+    // ACP 长驻连接实时生效：开计划→mode=plan；关计划→回到权限档
+    const task = taskStore.getTask(taskId);
+    if (task) {
+      const perm = on ? 'plan' : (task.permission && task.permission !== 'plan' ? task.permission : 'auto');
+      const acpMode = permission.acpModeValue(task.cli, perm as PermissionMode);
+      if (acpMode) void acp.setSessionOption(taskId, 'mode', acpMode);
+    }
+  });
+  ipcMain.handle('task:setGoalMode', (_e, taskId: string, on: boolean) => {
+    taskStore.updateTask(taskId, { goalMode: on });
+  });
   ipcMain.handle('task:setPermission', (_e, taskId: string, mode: PermissionMode) => {
     const task = taskStore.getTask(taskId);
     // 配置文件类 CLI：写入配置文件立即生效

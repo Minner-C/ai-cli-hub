@@ -154,19 +154,54 @@ function ToolDetail({ msg, cwd }: { msg: ChatMessage; cwd?: string }) {
       </div>
     );
   }
+  // 系统工具（TaskOutput/TaskList/CronCreate 等）：结构化渲染
+  if (/^(taskoutput|tasklist|taskget|croncreate|cronlist|crondelete|taskcreate|taskstop)$/i.test(name)) {
+    // 结果可能是 JSON
+    let parsed: Record<string, unknown> | null = null;
+    try { parsed = JSON.parse(result) as Record<string, unknown>; } catch { /* 纯文本 */ }
+    const statusVal = String(parsed?.status ?? parsed?.state ?? '');
+    const statusKind = /completed|success|done/i.test(statusVal) ? 'done' : /fail|error/i.test(statusVal) ? 'error' : /run|progress/i.test(statusVal) ? 'running' : '';
+    const fields: Array<[string, string]> = [];
+    if (parsed) {
+      for (const k of ['exit_code', 'exitCode', 'duration', 'duration_ms', 'description', 'task_id', 'taskId', 'stop_reason']) {
+        if (parsed[k] !== undefined) fields.push([k, String(parsed[k])]);
+      }
+    }
+    // 输出区（长文本）
+    const outputText = String(parsed?.output ?? parsed?.output_preview ?? result);
+    return (
+      <div className="tool-detail">
+        <div className="sys-tool">
+          {statusVal && (
+            <span className={`badge sys-status-${statusKind}`}>{statusVal}</span>
+          )}
+          {fields.map(([k, val]) => (
+            <span key={k} className="sys-field"><span className="hint">{k}</span> <span className="mono">{val.slice(0, 60)}</span></span>
+          ))}
+        </div>
+        {outputText && outputText !== '{}' && (
+          <pre className="tool-plain">{outputText.slice(0, 2000)}</pre>
+        )}
+      </div>
+    );
+  }
+
+  // 通用：参数 key-value 列表 + 结果
+  const argEntries = Object.entries(args).filter(([, v]) => v !== undefined && v !== '');
   return (
     <div className="tool-detail">
-      {msg.toolArgs && (
-        <>
-          <div className="hint">{t('chat.toolArgs')}</div>
-          <pre className="tool-plain">{msg.toolArgs.slice(0, 1000)}</pre>
-        </>
+      {argEntries.length > 0 && (
+        <div className="sys-tool">
+          {argEntries.map(([k, val]) => (
+            <span key={k} className="sys-field">
+              <span className="hint">{k}</span>{' '}
+              <span className="mono">{String(val).slice(0, 80)}</span>
+            </span>
+          ))}
+        </div>
       )}
       {result && (
-        <>
-          <div className="hint">{t('chat.toolResult')}</div>
-          <pre className="tool-plain">{result.slice(0, 2000)}</pre>
-        </>
+        <pre className="tool-plain">{result.slice(0, 2000)}</pre>
       )}
     </div>
   );

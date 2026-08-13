@@ -52,7 +52,9 @@
     "fileChanges": "File Changes",
     "noTodo": "No todos yet. They appear here once the AI uses the TodoWrite tool.",
     "noFileChanges": "No file changes yet. They appear here once the AI edits files.",
-    "jumpToBottom": "Back to bottom"
+    "jumpToBottom": "Back to bottom",
+    "copy": "Copy",
+    "copied": "Copied"
   },
   "common": {
     "expand": "Expand",
@@ -222,7 +224,11 @@
     "inBrowser": "Open in browser",
     "unsaved": "Unsaved",
     "discard": "Discard changes",
-    "saveFailed": "Save failed"
+    "saveFailed": "Save failed",
+    "read": "Read",
+    "edit": "Edit",
+    "source": "Source",
+    "preview": "Preview"
   },
   "effort": {
     "title": "Think",
@@ -305,7 +311,8 @@
     "auto": "Auto",
     "yolo": "Allow all",
     "unsupported": "Permission setting not supported for this CLI",
-    "planTitle": "Plan ready for review"
+    "planTitle": "Plan ready for review",
+    "questionTitle": "Question"
   },
   "runtime": {
     "installed": "Installed",
@@ -513,7 +520,9 @@
     "forward": "Forward",
     "reload": "Reload",
     "openExternal": "Open externally",
-    "addressPlaceholder": "Type a URL and press Enter"
+    "addressPlaceholder": "Type a URL and press Enter",
+    "devtools": "Developer tools",
+    "pick": "Pick element into chat"
   },
   "panel": {
     "collapseLeft": "Collapse sidebar",
@@ -524,7 +533,10 @@
       "files": "Files",
       "browser": "Browser",
       "preview": "Preview"
-    }
+    },
+    "emptyHint": "Nothing here yet",
+    "emptyTitle": "Preview & Browser",
+    "emptyDesc": "Click a file in the tree to preview, or press + for a new browser tab"
   },
   "titlebar": {
     "minimize": "Minimize",
@@ -548,5 +560,33 @@
   "roundNav": {
     "title": "Jump to turn",
     "more": "{{count}} earlier turns ▸"
+  },
+  "quota": {
+    "title": "Model quota exhausted",
+    "desc": "The current CLI has run out of usage quota. Wait for the refresh, or switch CLI / model to continue.",
+    "switchCli": "Switch CLI",
+    "switchModel": "Switch model"
+  },
+  "test": {
+    "open": "Automation test",
+    "run": "Run",
+    "stop": "Stop",
+    "save": "Save script",
+    "reset": "Reset template",
+    "headless": "Headless",
+    "headlessHint": "Headless mode hides the browser window",
+    "pass": "PASS",
+    "fail": "FAIL"
+  },
+  "mode": {
+    "title": "Mode",
+    "plan": "Plan",
+    "planDesc": "Let the agent draft a plan before modifying files",
+    "swarm": "Swarm",
+    "swarmDesc": "Run multiple agents in parallel",
+    "goal": "Goal",
+    "goalDesc": "Keep tracking a goal until done",
+    "kimiOnly": "Only available in kimi TUI (not exposed via ACP)",
+    "unsupported": "This CLI does not support mode switching"
   }
 }

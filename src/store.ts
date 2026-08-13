@@ -16,7 +16,8 @@ import type {
 // 右侧栏标签页：预览和浏览器统一为标签，支持同时打开多个
 export type RightTab =
   | { id: string; kind: 'preview'; path: string; cwd?: string; title: string }
-  | { id: string; kind: 'browser'; url: string; title: string };
+  | { id: string; kind: 'browser'; url: string; title: string }
+  | { id: string; kind: 'test'; title: string };
 
 let tabSeq = 0;
 const newTabId = () => `tab_${Date.now()}_${tabSeq++}`;
@@ -54,7 +55,8 @@ interface HubState {
   error: string | null;
   pendingPermissions: PermissionRequestPayload[];
   resolvedPermissions: Record<string, string>; // requestId → 已选 optionId
-  previewPath: string | null; // 文件预览面板（兼容旧调用，由 rightTabs 派生）
+  previewPath: string | null;
+  pendingInsert: string | null; // 浏览器选取元素等待插入输入框的文本 // 文件预览面板（兼容旧调用，由 rightTabs 派生）
   previewCwd?: string;        // 预览路径解析基准（任务目录）
   browserUrl: string;
   browserPanelOpen: boolean;
@@ -79,11 +81,13 @@ interface HubState {
   setSettingsOpen: (open: boolean) => void;
   setError: (msg: string | null) => void;
   setPreviewPath: (path: string | null, cwd?: string) => void;
+  setPendingInsert: (text: string | null) => void;
   respondPermission: (requestId: string, optionId: string | null) => Promise<void>;
   clearPermissionsFor: (taskId: string) => void;
   setBrowserUrl: (url: string) => void;
   setBrowserPanelOpen: (open: boolean) => void;
   closeRightTab: (id: string) => void;
+  openTestTab: () => void;
   setActiveRightTab: (id: string) => void;
   setRightPanelOpen: (open: boolean) => void;
   toggleRightPanel: () => void;
@@ -135,6 +139,7 @@ export const useHubStore = create<HubState>((set, get) => ({
   settings: null,
   settingsOpen: false,
   error: null,
+  pendingInsert: null,
   pendingPermissions: [],
   resolvedPermissions: {},
   previewPath: null,
@@ -159,6 +164,10 @@ export const useHubStore = create<HubState>((set, get) => ({
       settings,
       modelEntries,
       activeTaskId: tasks.length > 0 ? [...tasks].sort((a, b) => b.updatedAt - a.updatedAt)[0].id : null,
+    });
+    // 主窗口拦截的外部链接 → 右栏浏览器
+    window.hub.onBrowserOpenUrl((url) => {
+      get().setBrowserUrl(url);
     });
     // 权限审批请求
     window.hub.onPermissionRequest((req) => {
@@ -193,7 +202,7 @@ export const useHubStore = create<HubState>((set, get) => ({
         return last.type === 'tool' ? `${last.args?.length ?? 0}:${last.result?.length ?? 0}:${last.status}` : last.text.length + '';
       };
       const sameLast = !lastOld && !lastNew ? true : lastOld?.id === lastNew?.id && lastOld?.text === lastNew?.text && lastOld?.streaming === lastNew?.streaming && lastBlockArgs(lastOld) === lastBlockArgs(lastNew) && (lastOld?.blocks?.length ?? 0) === (lastNew?.blocks?.length ?? 0);
-      const sameMeta = old.title === task.title && old.cli === task.cli && old.modelEntryId === task.modelEntryId && old.effort === task.effort && old.pinned === task.pinned && old.permission === task.permission && old.model === task.model && old.changesClearedAt === task.changesClearedAt && old.todosClearedAt === task.todosClearedAt;
+      const sameMeta = old.title === task.title && old.cli === task.cli && old.modelEntryId === task.modelEntryId && old.effort === task.effort && old.pinned === task.pinned && old.permission === task.permission && old.model === task.model && old.changesClearedAt === task.changesClearedAt && old.todosClearedAt === task.todosClearedAt && old.planMode === task.planMode && old.goalMode === task.goalMode;
       return sameLen && sameLast && sameMeta ? old : task;
     });
     set({ tasks: merged });
@@ -221,11 +230,13 @@ export const useHubStore = create<HubState>((set, get) => ({
 
   send: async (taskId, text, images) => {
     // 乐观渲染用户消息 + 空 assistant 占位（发送即显示，避免等待首包期间无反馈）
+    // 新一轮对话开始：立即清空待办清单（todosClearedAt 标记过滤旧清单）
     set((s) => ({
       tasks: s.tasks.map((t) =>
         t.id === taskId
           ? {
               ...t,
+              todosClearedAt: Date.now(),
               messages: [
                 ...t.messages,
                 localMsg('user', text, {
@@ -294,6 +305,7 @@ export const useHubStore = create<HubState>((set, get) => ({
     set((s) => ({ pendingPermissions: s.pendingPermissions.filter((r) => r.taskId !== taskId) }));
   },
 
+  setPendingInsert: (text) => set({ pendingInsert: text }),
   setPreviewPath: (path, cwd) => {
     if (!path) {
       // 关闭当前激活的 preview tab
@@ -340,6 +352,14 @@ export const useHubStore = create<HubState>((set, get) => ({
 
   setBrowserPanelOpen: (open) => set({ browserPanelOpen: open }),
 
+  openTestTab: () => {
+    set((s) => {
+      const exist = s.rightTabs.find((t) => t.kind === 'test');
+      if (exist) return { activeRightTabId: exist.id, rightPanelOpen: true };
+      const tab: RightTab = { id: newTabId(), kind: 'test', title: 'Test' };
+      return { rightTabs: [...s.rightTabs, tab], activeRightTabId: tab.id, rightPanelOpen: true };
+    });
+  },
   closeRightTab: (id) => {
     set((s) => {
       const idx = s.rightTabs.findIndex((t) => t.id === id);

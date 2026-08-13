@@ -80,6 +80,7 @@
 html, body, #root {
   height: 100%;
   margin: 0;
+  overflow: hidden; /* 窗口级永不出现滚动条：只有各区域内部滚动 */
 }
 
 html {

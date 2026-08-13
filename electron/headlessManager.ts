@@ -426,6 +426,7 @@ export class HeadlessManager {
     });
 
     proc.on('close', (code) => {
+      const exitCode = code ?? undefined;
       this.running.delete(ctx.taskId);
       // 解析缓冲区残留
       if (buffer.trim()) {
@@ -436,7 +437,7 @@ export class HeadlessManager {
       } else if (code !== 0 && stderrBuf.trim()) {
         emit({ type: 'error', message: stderrBuf.trim().slice(0, 2000) });
       }
-      emit({ type: 'done' }); // emit 内部去重
+      emit({ type: 'done', exitCode }); // emit 内部去重
       resolve();
     });
     });

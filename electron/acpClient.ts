@@ -159,6 +159,7 @@ class AcpConnection {
   private pending = new Map<number, PendingReq>();
   private manualClose = false; // 主动 kill 时置 true：抑制 onClose 推送 error/system 事件，避免误导用户
   sessionId: string | null = null;
+  lastEventAt = 0; // 最后收到事件的时间（判定是否仍在生成）
   configOptions: AcpConfigOption[] = [];
   /** 暴露 envExtra 快照，用于检测切换模型时是否需要重建连接 */
   readonly envSnapshot: string;
@@ -257,6 +258,7 @@ class AcpConnection {
   }
 
   private onMessage(obj: Record<string, unknown>) {
+    this.lastEventAt = Date.now();
     acpLog('<<<', obj);
     // 响应
     if (obj.id !== undefined && (obj.result !== undefined || obj.error !== undefined)) {
@@ -720,12 +722,18 @@ export class AcpManager {
     return false;
   }
 
-  // 停止：cancel 通知（尽力而为）+ 立即杀进程（kimi 0.26 未实现 cancel，kill 是唯一可靠终止）
+  // 停止：先发 cancel（0.34 已支持优雅取消），同时兜底 kill（0.26 等老版本未实现 cancel）
+  // cancel 后 kimi 返回 stopReason=cancelled；若进程仍在（老版本无 cancel）则 kill
   async stop(taskId: string): Promise<void> {
     const conn = this.conns.get(taskId);
     if (!conn) return;
     conn.cancel();
-    this.kill(taskId);
+    // 优雅 cancel 窗口：若 1.5s 后仍有事件活动（老版本 cancel 无效）→ kill 兜底
+    setTimeout(() => {
+      if (this.conns.get(taskId) === conn && Date.now() - conn.lastEventAt < 1200) {
+        this.kill(taskId);
+      }
+    }, 1500);
   }
 
   // 对已建立的长驻连接实时设置 config option（如权限模式 mode），无连接时静默跳过

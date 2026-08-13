@@ -84,12 +84,10 @@ export default function App() {
       <TitleBar sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
 
       <div className="app">
-        {/* 左栏：任务列表（可收起），收起态留空（折叠按钮已在标题栏） */}
-        {sidebarOpen ? (
-          <div className="sidebar-wrap">
-            <TaskSidebar onNewChat={() => setNewChatOpen(true)} />
-          </div>
-        ) : null}
+        {/* 左栏：任务列表（宽度过渡收起/展开） */}
+        <div className={`sidebar-wrap ${sidebarOpen ? '' : 'collapsed'}`}>
+          <TaskSidebar onNewChat={() => setNewChatOpen(true)} />
+        </div>
 
         {/* 中栏：对话区 */}
         <div className="main">

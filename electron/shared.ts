@@ -51,10 +51,12 @@ export interface TaskMeta {
   modelEntryId?: string;   // 统一模型列表条目（选择即路由，优先于 model）
   effort?: EffortLevel;    // 任务级思考强度（未设置不注入）
   permission?: PermissionMode; // 任务级权限模式（未设置不注入）
+  planMode?: boolean; // 计划模式（与权限独立的轴，如 kimi web）
   cliSessions: Partial<Record<CliId, string>>; // 各 CLI 的会话 id
   createdAt: number;
   updatedAt: number;
   pinned?: boolean;
+  goalMode?: boolean; // 目标模式（kimi -p /goal，headless 通道）
   changesClearedAt?: number; // 变更列表清空时间点（此前的改动不再显示）
   todosClearedAt?: number; // 待办清单清空时间点（此前的待办不再显示）
 }
@@ -72,7 +74,7 @@ export type StreamEvent =
   | { taskId: string; type: 'session'; cli: CliId; sessionId: string }
   | { taskId: string; type: 'system'; text: string }                // 系统消息（如 CLI 切换）
   | { taskId: string; type: 'usage'; inputTokens: number; outputTokens: number; estimated: boolean }
-  | { taskId: string; type: 'done' }
+  | { taskId: string; type: 'done'; exitCode?: number }
   | { taskId: string; type: 'error'; message: string };
 
 // 不带 taskId 的事件载荷（分配式 Omit，保持联合分支）
@@ -91,7 +93,7 @@ export interface SwitchPrepareResult {
 export type EffortLevel = 'off' | 'low' | 'medium' | 'high';
 
 // 权限模式档位：default=手动确认 / auto=自动批准安全操作 / yolo=跳过全部审批
-export type PermissionMode = 'default' | 'auto' | 'yolo';
+export type PermissionMode = 'default' | 'auto' | 'yolo' | 'plan';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type Language = 'zh' | 'en';
@@ -321,6 +323,13 @@ export interface HubApi {
   onMenuAction: (cb: (action: string, payload?: unknown) => void) => () => void;
   // ACP 权限审批
   onPermissionRequest: (cb: (req: PermissionRequestPayload) => void) => () => void;
+  onBrowserOpenUrl: (cb: (url: string) => void) => () => void;
+  // 自动化测试
+  runTest: (taskId: string, cwd: string, script: string, baseURL: string, headless: boolean) => Promise<{ ok: boolean; error?: string; screenshot?: string }>;
+  stopTest: (taskId: string) => Promise<void>;
+  loadTestScript: (cwd: string) => Promise<string>;
+  saveTestScript: (cwd: string, script: string) => Promise<void>;
+  onTestOutput: (cb: (taskId: string, chunk: string) => void) => () => void;
   respondPermission: (requestId: string, optionId: string | null) => Promise<boolean>;
   // 账号与密钥
   getAuthStatus: () => Promise<Record<CliId, CliAuthStatus>>;
@@ -333,6 +342,8 @@ export interface HubApi {
   setTaskEffort: (taskId: string, effort: EffortLevel) => Promise<void>;
   getEffortSupport: (cliId: CliId) => Promise<{ supported: boolean; note?: string }>;
   setTaskPermission: (taskId: string, mode: PermissionMode) => Promise<void>;
+  setTaskGoalMode: (taskId: string, on: boolean) => Promise<void>;
+  setTaskPlanMode: (taskId: string, on: boolean) => Promise<void>;
   getPermissionSupport: (cliId: CliId) => Promise<{ supported: boolean; note?: string; via?: 'args' | 'config' | 'none' }>;
   readPermissionFromConfig: (cliId: CliId) => Promise<PermissionMode | undefined>;
   // 统一模型列表

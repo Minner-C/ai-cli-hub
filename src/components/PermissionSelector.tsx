@@ -56,7 +56,9 @@ export default function PermissionSelector({
 
   const supported = support?.supported ?? false;
   // 任务级权限优先，其次配置文件读取的值；未显式设置时回退 auto（headless 场景无交互审批）
-  const active = current ?? configMode ?? 'auto';
+  // 兼容旧数据：permission==='plan' 是计划模式独立轴拆分前的残留，按未设置处理
+  const rawCurrent = current === 'plan' ? undefined : current;
+  const active = rawCurrent ?? configMode ?? 'auto';
 
   const onChange = async (mode: PermissionMode) => {
     try {

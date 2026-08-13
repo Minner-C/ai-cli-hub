@@ -34,7 +34,16 @@ export default function ModelDropdown({
   const [switching, setSwitching] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // 打开时并行加载第三方模型、供应商与当前 CLI 的内置模型
+  // 挂载时即加载显示所需数据（按钮 label 依赖 entries/builtins，不能只等打开面板）
+  useEffect(() => {
+    void window.hub.listModelEntries().then((list) => setEntries(list.filter((e) => e.enabled)));
+    // 有内置模型选择时才取内置列表（listModels 可能拉起 CLI 查询，避免无谓调用）
+    if (taskModel && !currentEntryId) {
+      void window.hub.listModels(taskCli).then(setBuiltins);
+    }
+  }, [taskCli, taskModel, currentEntryId]);
+
+  // 打开面板时刷新全量数据
   useEffect(() => {
     if (!open) return;
     void Promise.all([

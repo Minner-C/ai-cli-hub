@@ -36,6 +36,21 @@ export function buildHubApi(): HubApi {
     getSettings: () => ipcRenderer.invoke('settings:get'),
     setSettings: (settings: Partial<AppSettings>) => ipcRenderer.invoke('settings:set', settings),
 
+    runTest: (taskId, cwd, script, baseURL, headless) =>
+      ipcRenderer.invoke('test:run', taskId, cwd, script, baseURL, headless),
+    stopTest: (taskId) => ipcRenderer.invoke('test:stop', taskId),
+    loadTestScript: (cwd) => ipcRenderer.invoke('test:loadScript', cwd),
+    saveTestScript: (cwd, script) => ipcRenderer.invoke('test:saveScript', cwd, script),
+    onTestOutput: (cb) => {
+      const listener = (_e: unknown, taskId: string, chunk: string) => cb(taskId, chunk);
+      ipcRenderer.on('test:output', listener);
+      return () => ipcRenderer.removeListener('test:output', listener);
+    },
+    onBrowserOpenUrl: (cb) => {
+      const listener = (_e: unknown, url: string) => cb(url);
+      ipcRenderer.on('browser:openUrl', listener);
+      return () => ipcRenderer.removeListener('browser:openUrl', listener);
+    },
     onPermissionRequest: (cb) => {
       const listener = (_e: unknown, req: import('./shared').PermissionRequestPayload) => cb(req);
       ipcRenderer.on('permission:request', listener);
@@ -62,6 +77,10 @@ export function buildHubApi(): HubApi {
     getEffortSupport: (cliId: CliId) => ipcRenderer.invoke('effort:support', cliId),
     setTaskPermission: (taskId: string, mode: PermissionMode) =>
       ipcRenderer.invoke('task:setPermission', taskId, mode),
+    setTaskPlanMode: (taskId: string, on: boolean) =>
+      ipcRenderer.invoke('task:setPlanMode', taskId, on),
+    setTaskGoalMode: (taskId: string, on: boolean) =>
+      ipcRenderer.invoke('task:setGoalMode', taskId, on),
     getPermissionSupport: (cliId: CliId) => ipcRenderer.invoke('permission:support', cliId),
     readPermissionFromConfig: (cliId: CliId) => ipcRenderer.invoke('permission:readConfig', cliId),
     getProviderState: (cliId: CliId) => ipcRenderer.invoke('provider:state', cliId),

@@ -171,6 +171,12 @@ export function writeConfigNestedField(cli: CliId, fieldPath: string, value: unk
 // ---- 版本检测 ----
 const versionCache = new Map<CliId, { version: string; ts: number }>();
 
+// 安装/更新成功后调用：清除版本缓存，下次检测拿真实新版本
+export function invalidateVersionCache(cli?: CliId): void {
+  if (cli) versionCache.delete(cli);
+  else versionCache.clear();
+}
+
 export function detectCliVersion(
   cli: CliId,
   executable: { file: string; argsPrefix: string[] },
@@ -222,7 +228,7 @@ export function checkLatestVersion(cli: CliId): Promise<string | null> {
   const npmPkg = NPM_PACKAGES[cli];
   if (npmPkg) {
     return new Promise((resolve) => {
-      execFile('npm', ['view', npmPkg, 'version'], { timeout: 30_000, windowsHide: true }, (err, stdout) => {
+      execFile('npm', ['view', npmPkg, 'version'], { timeout: 30_000, windowsHide: true, shell: true }, (err, stdout) => {
         resolve(err ? null : stdout.trim() || null);
       });
     });
@@ -231,10 +237,10 @@ export function checkLatestVersion(cli: CliId): Promise<string | null> {
   if (pipPkg) {
     // pip index versions <pkg> 输出形如：aider-chat (0.x.x)；旧版 pip 用 pip install <pkg>== 末尾报错列出可选版本
     return new Promise((resolve) => {
-      execFile('pip', ['index', 'versions', pipPkg, PIP_MIRROR_ARGS], { timeout: 30_000, windowsHide: true }, (err, stdout) => {
+      execFile('pip', ['index', 'versions', pipPkg, PIP_MIRROR_ARGS], { timeout: 30_000, windowsHide: true, shell: true }, (err, stdout) => {
         if (err) {
           // 旧版 pip 无 index 子命令，回退到 pip install <pkg>== 抓取报错中的版本列表
-          execFile('pip', ['install', `${pipPkg}==`], { timeout: 30_000, windowsHide: true }, (_e, _o, stderr) => {
+          execFile('pip', ['install', `${pipPkg}==`], { timeout: 30_000, windowsHide: true, shell: true }, (_e, _o, stderr) => {
             const m = stderr.match(/from versions:\s*([0-9.,\s]+?)(?:\))/);
             if (m) {
               const vers = m[1].split(',').map((s) => s.trim()).filter(Boolean);
@@ -277,7 +283,7 @@ export async function runUpdateInTerminal(cli: CliId): Promise<{ ok: boolean; me
   let cmd: string;
   let tool: 'npm' | 'pip' = 'npm';
   const pkg = NPM_PACKAGES[cli];
-  if (cli === 'kimi') cmd = 'kimi upgrade';
+  if (cli === 'kimi') cmd = updateCommandOf('kimi')!; // 原生安装走官方 PS 脚本，npm 安装走 npm update
   else if (cli === 'aider') {
     cmd = `pip install --upgrade aider-chat ${PIP_MIRROR_ARGS}`;
     tool = 'pip';
@@ -313,10 +319,25 @@ export function installCommandOf(cli: CliId): string | null {
 // 更新命令（应用内执行，非交互）
 export function updateCommandOf(cli: CliId): string | null {
   const pkg = NPM_PACKAGES[cli];
-  if (cli === 'kimi') return 'kimi upgrade';
+  if (cli === 'kimi') {
+    // kimi 原生安装（~/.kimi-code/bin/kimi.exe）不支持 kimi upgrade 自更新，
+    // 用官方 PowerShell 安装脚本覆盖更新；npm 安装则走 npm update
+    const nativeExe = path.join(os.homedir(), '.kimi-code', 'bin', 'kimi.exe');
+    if (fs.existsSync(nativeExe)) {
+      // 末尾 exit 确保脚本结束后进程退出（否则界面等不到完成信号）
+      return `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://code.kimi.com/kimi-code/install.ps1 | iex; exit $LASTEXITCODE"`;
+    }
+    return `npm update -g @moonshot-ai/kimi-code ${npmPrefixArg()}`;
+  }
   if (cli === 'aider') return `pip install --upgrade aider-chat ${PIP_MIRROR_ARGS}`;
   if (cli === 'hermes') return `pip install --upgrade hermes-agent ${PIP_MIRROR_ARGS}`;
-  return pkg ? `npm update -g ${pkg} ${npmPrefixArg()}` : null;
+  if (pkg) {
+    // 只有装在应用 cli-bin 目录的才带 --prefix；系统全局安装的必须全局更新，
+    // 否则 npm 在错误前缀下找不到包，秒回 "up to date" 实际什么都没做
+    const inCliBin = fs.existsSync(path.join(getCliBinDir(), 'node_modules', pkg));
+    return inCliBin ? `npm update -g ${pkg} ${npmPrefixArg()}` : `npm install -g ${pkg}@latest`;
+  }
+  return null;
 }
 
 export async function runInstallInTerminal(cli: CliId): Promise<{ ok: boolean; message: string }> {

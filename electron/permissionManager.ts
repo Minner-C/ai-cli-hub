@@ -52,6 +52,7 @@ export function acpModeValue(cli: CliId, mode: PermissionMode): string | undefin
     case 'kimi': // ACP: default/plan/auto/yolo
       return mode;
     case 'claude': // ACP: default/acceptEdits/plan/bypassPermissions
+      if (mode === 'plan') return 'plan';
       if (mode === 'auto') return 'acceptEdits';
       if (mode === 'yolo') return 'bypassPermissions';
       return 'default';
@@ -79,13 +80,13 @@ const PERM_CONFIG: Partial<Record<CliId, PermConfigMap>> = {
   // kimi: default_permission_mode = manual | auto | yolo
   kimi: {
     fieldPath: 'default_permission_mode',
-    toConfigValue: { default: 'manual', auto: 'auto', yolo: 'yolo' },
+    toConfigValue: { default: 'manual', auto: 'auto', yolo: 'yolo', plan: 'manual' }, // plan 仅 ACP 实时下发；config 通道回退 manual
     fromConfigValue: { manual: 'default', auto: 'auto', yolo: 'yolo' },
   },
   // qwen: tools.approvalMode = plan | default | auto-edit | auto | yolo
   qwen: {
     fieldPath: 'tools.approvalMode',
-    toConfigValue: { default: 'default', auto: 'auto', yolo: 'yolo' },
+    toConfigValue: { default: 'default', auto: 'auto', yolo: 'yolo', plan: 'plan' },
     fromConfigValue: {
       plan: 'default', default: 'default',
       'auto-edit': 'auto', auto: 'auto',
@@ -95,7 +96,7 @@ const PERM_CONFIG: Partial<Record<CliId, PermConfigMap>> = {
   // gemini: autoAccept = true | false（仅 default/auto 两档，yolo 等同 auto）
   gemini: {
     fieldPath: 'autoAccept',
-    toConfigValue: { default: false, auto: true, yolo: true },
+    toConfigValue: { default: false, auto: true, yolo: true, plan: false },
     fromConfigValue: { 'false': 'default', 'true': 'auto' },
   },
 };

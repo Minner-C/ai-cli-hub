@@ -52,7 +52,9 @@
     "fileChanges": "文件变更",
     "noTodo": "暂无待办，AI 使用 TodoWrite 工具后会在此展示",
     "noFileChanges": "暂无文件变更，AI 编辑文件后会在此展示",
-    "jumpToBottom": "回到底部"
+    "jumpToBottom": "回到底部",
+    "copy": "复制",
+    "copied": "已复制"
   },
   "common": {
     "expand": "展开",
@@ -222,7 +224,11 @@
     "inBrowser": "在浏览器中打开",
     "unsaved": "未保存",
     "discard": "放弃修改",
-    "saveFailed": "保存失败"
+    "saveFailed": "保存失败",
+    "read": "阅读",
+    "edit": "编辑",
+    "source": "源码",
+    "preview": "预览"
   },
   "effort": {
     "title": "思考",
@@ -305,7 +311,8 @@
     "auto": "自动",
     "yolo": "全部允许",
     "unsupported": "该 CLI 不支持权限设置",
-    "planTitle": "方案待确认"
+    "planTitle": "方案待确认",
+    "questionTitle": "提问"
   },
   "runtime": {
     "installed": "已安装",
@@ -513,7 +520,9 @@
     "forward": "前进",
     "reload": "刷新",
     "openExternal": "在外部浏览器打开",
-    "addressPlaceholder": "输入网址，回车打开"
+    "addressPlaceholder": "输入网址，回车打开",
+    "devtools": "开发者工具",
+    "pick": "选取元素插入对话"
   },
   "panel": {
     "collapseLeft": "收起任务栏",
@@ -524,7 +533,10 @@
       "files": "文件",
       "browser": "浏览器",
       "preview": "预览"
-    }
+    },
+    "emptyHint": "暂无内容",
+    "emptyTitle": "预览与浏览器",
+    "emptyDesc": "点击文件树中的文件进行预览，或点「+」新建浏览器标签页"
   },
   "titlebar": {
     "minimize": "最小化",
@@ -548,5 +560,33 @@
   "roundNav": {
     "title": "定位到轮次",
     "more": "更早 {{count}} 轮 ▸"
+  },
+  "quota": {
+    "title": "模型额度已用尽",
+    "desc": "当前 CLI 的用量额度已用完。可等待额度刷新，或切换其他 CLI / 模型继续。",
+    "switchCli": "切换 CLI",
+    "switchModel": "换模型"
+  },
+  "test": {
+    "open": "自动化测试",
+    "run": "运行",
+    "stop": "停止",
+    "save": "保存脚本",
+    "reset": "重置模板",
+    "headless": "无头",
+    "headlessHint": "无头模式不显示浏览器窗口",
+    "pass": "通过",
+    "fail": "失败"
+  },
+  "mode": {
+    "title": "模式",
+    "plan": "计划",
+    "planDesc": "先让智能体梳理计划再修改文件",
+    "swarm": "Swarm",
+    "swarmDesc": "并行运行多个智能体",
+    "goal": "目标",
+    "goalDesc": "持续跟踪一个目标直到任务完成",
+    "kimiOnly": "仅 kimi TUI 支持（ACP 未暴露）",
+    "unsupported": "该 CLI 不支持模式切换"
   }
 }

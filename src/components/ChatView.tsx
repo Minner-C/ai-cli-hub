@@ -10,9 +10,10 @@ import InputPanel from './InputPanel';
 import ModelDropdown from './ModelDropdown';
 import EffortSelector from './EffortSelector';
 import PermissionSelector from './PermissionSelector';
+import ModeSelector from './ModeSelector';
 import RoundNav from './RoundNav';
 import ProviderSelector from './ProviderSelector';
-import { ChevronRight, AlertCircle, RotateCcw, X, ImagePlus, PanelRight, PanelRightClose, ShieldQuestion } from 'lucide-react';
+import { ChevronRight, AlertCircle, RotateCcw, X, ImagePlus, PanelRight, PanelRightClose, ShieldQuestion, Coins } from 'lucide-react';
 import { classifyError } from '../utils/errorClassify';
 import { messageBlocks } from '../../electron/shared';
 import { estimateContextUsage } from '../utils/context';
@@ -98,12 +99,44 @@ function Blocks({ msg, cwd, onImageClick }: { msg: ChatMessage; cwd?: string; on
 }
 
 // 模型调用失败：内联错误块（淡红底 + 图标 + 摘要 + 可展开原文 + 重试）
-function ErrorBlock({ msg, taskId }: { msg: ChatMessage; taskId: string }) {
+function ErrorBlock({ msg, taskId, onSwitchCli }: { msg: ChatMessage; taskId: string; onSwitchCli?: () => void }) {
   const { t } = useTranslation();
   const { send, runningTaskIds } = useHubStore();
   const [expanded, setExpanded] = useState(false);
   const kind = classifyError(msg.text);
   const running = runningTaskIds.has(taskId);
+
+  // 额度用尽：专属警示卡片 + 快捷操作
+  if (kind === 'quota') {
+    return (
+      <div className="quota-card">
+        <div className="quota-head" onClick={() => setExpanded(!expanded)}>
+          <Coins size={15} className="quota-icon" />
+          <span className="quota-title">{t('quota.title')}</span>
+          <span className="tool-row-chevron">{expanded ? '▾' : '▸'}</span>
+        </div>
+        <div className="quota-desc">{t('quota.desc')}</div>
+        <div className="quota-actions">
+          <button
+            className="quota-btn"
+            onClick={() => onSwitchCli?.()}
+          >
+            {t('quota.switchCli')}
+          </button>
+          <button
+            className="quota-btn"
+            onClick={() => {
+              // 换模型：打开模型下拉（聚焦输入栏选择器）
+              document.querySelector<HTMLElement>('.model-selector')?.click();
+            }}
+          >
+            {t('quota.switchModel')}
+          </button>
+        </div>
+        {expanded && <pre className="error-detail">{msg.text}</pre>}
+      </div>
+    );
+  }
 
   return (
     <div className="error-block">
@@ -131,10 +164,10 @@ function ErrorBlock({ msg, taskId }: { msg: ChatMessage; taskId: string }) {
   );
 }
 
-const MessageItem = memo(function MessageItem({ msg, cwd, showCursor, taskId, onImageClick }: { msg: ChatMessage; cwd?: string; showCursor?: boolean; taskId?: string; onImageClick?: (dataUrl: string) => void }) {
+const MessageItem = memo(function MessageItem({ msg, cwd, showCursor, taskId, onImageClick, onSwitchCli }: { msg: ChatMessage; cwd?: string; showCursor?: boolean; taskId?: string; onImageClick?: (dataUrl: string) => void; onSwitchCli?: () => void }) {
   if (msg.role === 'tool') return <ToolCard msg={msg} cwd={cwd} />;
   if (msg.role === 'system') {
-    if (msg.error && taskId) return <ErrorBlock msg={msg} taskId={taskId} />;
+    if (msg.error && taskId) return <ErrorBlock msg={msg} taskId={taskId} onSwitchCli={onSwitchCli} />;
     return (
       <div className="msg msg-system">
         <pre>{msg.text}</pre>
@@ -214,20 +247,24 @@ function PermissionCard({ req }: { req: import('../../electron/shared').Permissi
   const chosen = resolvedPermissions[req.requestId];
   // 方案选择类（ExitPlanMode 等带完整方案内容）：选项列表卡片，选项文案用原文
   const isPlan = Boolean(req.planContent);
+  const isQuestion = /askuserquestion/i.test(req.toolName);
   return (
     <div className={`perm-card ${isPlan ? 'perm-plan' : ''}`}>
       <div className="perm-head">
         <ShieldQuestion size={14} className="perm-icon" />
-        <span className="perm-title">{isPlan ? t('permission.planTitle') : t('permission.title')}</span>
-        {!isPlan && <strong>{req.toolName}</strong>}
+        <span className="perm-title">{isQuestion ? t('permission.questionTitle') : isPlan ? t('permission.planTitle') : t('permission.title')}</span>
+        {!isPlan && !isQuestion && <strong>{req.toolName}</strong>}
       </div>
-      {isPlan && req.planContent && (
+      {isPlan && !isQuestion && req.planContent && (
         <div className="perm-plan-content">
           <MarkdownView text={req.planContent} cwd={undefined} />
         </div>
       )}
+      {isQuestion && req.planContent && (
+        <div className="perm-question">{req.planContent}</div>
+      )}
       {!isPlan && req.summary && <div className="perm-summary mono">{req.summary}</div>}
-      <div className={isPlan ? 'perm-options-list' : 'perm-options'}>
+      <div className={isPlan || isQuestion ? 'perm-options-list' : 'perm-options'}>
         {req.options.map((opt) => {
           const isChosen = chosen === opt.optionId;
           if (isPlan) {
@@ -271,6 +308,14 @@ export default function ChatView({ task }: { task: Task }) {
   );
   const { clis, runningTaskIds, send, stop, rightPanelOpen, toggleRightPanel, pendingPermissions, respondPermission, resolvedPermissions } = useHubStore();
   const [input, setInput] = useState('');
+  const { pendingInsert, setPendingInsert } = useHubStore();
+  // 浏览器选取元素 → 追加到输入框末尾（不直接发送）
+  useEffect(() => {
+    if (pendingInsert) {
+      setInput((cur) => (cur ? cur + '\n\n' + pendingInsert : pendingInsert));
+      setPendingInsert(null);
+    }
+  }, [pendingInsert, setPendingInsert]);
   const [switchOpen, setSwitchOpen] = useState(false);
   const [attachments, setAttachments] = useState<Array<{ data: string; mimeType: string; name: string; dataUrl: string }>>([]);
   const [bigImage, setBigImage] = useState<string | null>(null);
@@ -414,6 +459,7 @@ export default function ChatView({ task }: { task: Task }) {
               cwd={task.cwd}
               taskId={task.id}
               onImageClick={setBigImage}
+            onSwitchCli={() => setSwitchOpen(true)}
               showCursor={running && i === task.messages.length - 1}
             />
           </div>
@@ -482,6 +528,12 @@ export default function ChatView({ task }: { task: Task }) {
             cliId={task.cli}
             taskId={task.id}
             current={task.permission}
+            disabled={running}
+          />
+          <ModeSelector
+            cliId={task.cli}
+            taskId={task.id}
+            current={task.planMode ? 'plan' : ''}
             disabled={running}
           />
           <span style={{ flex: 1 }} />
