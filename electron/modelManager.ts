@@ -38,6 +38,11 @@ const BUILTIN_MODELS: Record<Exclude<CliId, 'kimi'>, ModelInfo[]> = {
     { id: 'gpt-4o', displayName: 'GPT-4o' },
     { id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro' },
   ],
+  dsh: [
+    // 实测 llm.models RPC（2026-08）：deepseek-official 下仅此两款，均支持 reasoningEffort off/high/max
+    { id: 'deepseek-v4-flash', displayName: 'DeepSeek-V4-Flash' },
+    { id: 'deepseek-v4-pro', displayName: 'DeepSeek-V4-Pro' },
+  ],
   hermes: [
     { id: 'hermes-3-405b', displayName: 'Hermes 3 405B' },
     { id: 'hermes-3-70b', displayName: 'Hermes 3 70B' },

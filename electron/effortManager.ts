@@ -12,6 +12,7 @@ const CLAUDE_TOKENS: Record<EffortLevel, string> = {
   low: '1024',
   medium: '8000',
   high: '31999',
+  max: '31999', // claude 无 max 档，回退 high 等值
 };
 
 // codex: -c model_reasoning_effort=<level>（minimal/low/medium/high，未实测）
@@ -20,12 +21,19 @@ const CODEX_EFFORT: Record<EffortLevel, string> = {
   low: 'low',
   medium: 'medium',
   high: 'high',
+  max: 'high', // codex 无 max 档，回退 high
 };
+
+// dsh: selectModel reasoningEffort 原样下发（off/high/max，实测 llm.models）
+export const DSH_EFFORTS: EffortLevel[] = ['off', 'high', 'max'];
 
 export function effortSupport(cli: CliId): EffortSupport {
   switch (cli) {
     case 'claude':
     case 'codex':
+      return { supported: true };
+    case 'dsh':
+      // 经 dsh web RPC session.selectModel 的 reasoningEffort 下发（见 dshChat.applySessionControls）
       return { supported: true };
     case 'kimi':
       // 通过 spawn 前临时改写 config.toml [thinking] 生效（见 kimiThinking.ts）

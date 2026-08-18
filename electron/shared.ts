@@ -1,5 +1,5 @@
 // 共享类型定义：主进程、preload、渲染进程三方共用
-export type CliId = 'kimi' | 'claude' | 'gemini' | 'codex' | 'qwen' | 'opencode' | 'aider' | 'pi' | 'hermes';
+export type CliId = 'kimi' | 'claude' | 'gemini' | 'codex' | 'qwen' | 'opencode' | 'aider' | 'pi' | 'hermes' | 'dsh';
 
 export interface CliInfo {
   id: CliId;
@@ -90,7 +90,30 @@ export interface SwitchPrepareResult {
 }
 
 // 思考强度档位
-export type EffortLevel = 'off' | 'low' | 'medium' | 'high';
+export type EffortLevel = 'off' | 'low' | 'medium' | 'high' | 'max';
+
+// ---- CLI 能力矩阵：输入栏选择器按此显隐（不支持的直接隐藏，不置灰）----
+// 依据：各 CLI 真实支持情况实测（dsh 2026-08 实测：/permission 两档 preset、selectModel reasoningEffort off/high/max、/plan 命令）
+export interface CliFeatures {
+  permission: boolean;           // 权限模式选择器
+  efforts: EffortLevel[] | null; // 思考档位列表；null=不支持
+  plan: boolean;                 // 计划模式
+  goal: boolean;                 // 目标模式（kimi -p /goal）
+  swarm: boolean;                // Swarm（kimi TUI 专属，ACP 不支持，暂无 CLI 可用）
+}
+
+export const CLI_FEATURES: Record<CliId, CliFeatures> = {
+  kimi: { permission: true, efforts: ['off', 'low', 'medium', 'high', 'max'], plan: true, goal: true, swarm: false },
+  claude: { permission: true, efforts: ['off', 'low', 'medium', 'high'], plan: true, goal: false, swarm: false },
+  dsh: { permission: true, efforts: ['off', 'high', 'max'], plan: true, goal: false, swarm: false },
+  codex: { permission: true, efforts: ['off', 'low', 'medium', 'high'], plan: false, goal: false, swarm: false },
+  gemini: { permission: true, efforts: null, plan: false, goal: false, swarm: false },
+  qwen: { permission: true, efforts: null, plan: false, goal: false, swarm: false },
+  opencode: { permission: false, efforts: null, plan: false, goal: false, swarm: false },
+  aider: { permission: false, efforts: null, plan: false, goal: false, swarm: false },
+  pi: { permission: false, efforts: null, plan: false, goal: false, swarm: false },
+  hermes: { permission: false, efforts: null, plan: false, goal: false, swarm: false },
+};
 
 // 权限模式档位：default=手动确认 / auto=自动批准安全操作 / yolo=跳过全部审批
 export type PermissionMode = 'default' | 'auto' | 'yolo' | 'plan';
@@ -317,13 +340,26 @@ export interface HubApi {
   // 其他
   pickDirectory: () => Promise<string | null>;
   pickExecutable: () => Promise<string | null>;
-  getAppInfo: () => Promise<{ version: string }>;
+  getAppInfo: () => Promise<{ version: string; home: string }>;
   getSettings: () => Promise<AppSettings>;
   setSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>;
   onMenuAction: (cb: (action: string, payload?: unknown) => void) => () => void;
   // ACP 权限审批
   onPermissionRequest: (cb: (req: PermissionRequestPayload) => void) => () => void;
   onBrowserOpenUrl: (cb: (url: string) => void) => () => void;
+  dshStartWeb: () => Promise<{ ok: boolean; url: string; message?: string }>;
+  // dsh 设置页：服务控制 / 插件管理 / 凭证 / profile / 默认模型
+  dshServiceStatus: () => Promise<{ running: boolean; url: string; port: number }>;
+  dshStopWeb: () => Promise<{ ok: boolean; message?: string }>;
+  dshListProfiles: () => Promise<import('./dshManager').DshProfile[]>;
+  dshListPlugins: (profile: string) => Promise<import('./dshManager').DshPluginEntry[]>;
+  dshSetPluginDisabled: (profile: string, id: string, disabled: boolean) => Promise<void>;
+  dshInstallPlugin: (profile: string, pkg: string) => Promise<{ ok: boolean; output: string }>;
+  dshUninstallPlugin: (profile: string, name: string) => Promise<{ ok: boolean; output: string }>;
+  dshCredentialStatus: () => Promise<import('./dshManager').DshCredentialStatus>;
+  dshWriteCredential: (ref: string, value: string | null) => Promise<void>;
+  dshGetDefaultModel: (profile: string) => Promise<{ provider?: string; model?: string }>;
+  dshSetDefaultModel: (profile: string, provider: string, model: string) => Promise<void>;
   // 自动化测试
   runTest: (taskId: string, cwd: string, script: string, baseURL: string, headless: boolean) => Promise<{ ok: boolean; error?: string; screenshot?: string }>;
   stopTest: (taskId: string) => Promise<void>;

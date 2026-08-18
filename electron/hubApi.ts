@@ -46,6 +46,20 @@ export function buildHubApi(): HubApi {
       ipcRenderer.on('test:output', listener);
       return () => ipcRenderer.removeListener('test:output', listener);
     },
+    dshStartWeb: () => ipcRenderer.invoke('dsh:startWeb'),
+    dshServiceStatus: () => ipcRenderer.invoke('dsh:serviceStatus'),
+    dshStopWeb: () => ipcRenderer.invoke('dsh:stopWeb'),
+    dshListProfiles: () => ipcRenderer.invoke('dsh:profiles'),
+    dshListPlugins: (profile: string) => ipcRenderer.invoke('dsh:plugins', profile),
+    dshSetPluginDisabled: (profile: string, id: string, disabled: boolean) =>
+      ipcRenderer.invoke('dsh:setPluginDisabled', profile, id, disabled),
+    dshInstallPlugin: (profile: string, pkg: string) => ipcRenderer.invoke('dsh:installPlugin', profile, pkg),
+    dshUninstallPlugin: (profile: string, name: string) => ipcRenderer.invoke('dsh:uninstallPlugin', profile, name),
+    dshCredentialStatus: () => ipcRenderer.invoke('dsh:credentialStatus'),
+    dshWriteCredential: (ref: string, value: string | null) => ipcRenderer.invoke('dsh:writeCredential', ref, value),
+    dshGetDefaultModel: (profile: string) => ipcRenderer.invoke('dsh:getDefaultModel', profile),
+    dshSetDefaultModel: (profile: string, provider: string, model: string) =>
+      ipcRenderer.invoke('dsh:setDefaultModel', profile, provider, model),
     onBrowserOpenUrl: (cb) => {
       const listener = (_e: unknown, url: string) => cb(url);
       ipcRenderer.on('browser:openUrl', listener);

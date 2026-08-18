@@ -21,6 +21,7 @@ function configPath(cli: CliId): string | null {
     case 'opencode':
     case 'aider':
     case 'pi':
+    case 'dsh':
       return null; // 无公开 MCP 配置约定，暂不支持
     case 'kimi':
       return path.join(home(), '.kimi-code', 'mcp.json');

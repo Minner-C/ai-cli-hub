@@ -86,10 +86,16 @@ function rawTasks(): Task[] {
 
 export function listTasks(): Task[] {
   // 历史消息展示时应用乱码修复（展示态副本）
-  return rawTasks().map((task) => ({
-    ...task,
-    messages: fixToolMessages(task.messages).map(sanitizeMessage),
-  }));
+  return rawTasks().map((task) => {
+    // 旧数据迁移：plan 从 permission 字段拆为独立轴之前的残留
+    const t = task.permission === 'plan'
+      ? { ...task, planMode: true, permission: undefined }
+      : task;
+    return {
+      ...t,
+      messages: fixToolMessages(t.messages).map(sanitizeMessage),
+    };
+  });
 }
 
 export function getTask(id: string): Task | undefined {

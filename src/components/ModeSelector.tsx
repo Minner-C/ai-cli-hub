@@ -1,10 +1,10 @@
 // 智能体模式开关组：计划（plan）/ Swarm / 目标（goal）
-// 实测（kimi 0.34 ACP）：plan 走 set_config_option('mode','plan')；swarm/goal 在 ACP 下是 "Unknown ACP command"（TUI 专属），置灰标注
+// 显隐由 CLI_FEATURES 能力矩阵决定：plan（kimi/claude/dsh）、goal（仅 kimi）；都不支持则整体隐藏
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BrainCircuit } from 'lucide-react';
 import { useHubStore } from '../store';
-import type { CliId } from '../../electron/shared';
+import { CLI_FEATURES, type CliId } from '../../electron/shared';
 
 export default function ModeSelector({
   cliId,
@@ -24,11 +24,12 @@ export default function ModeSelector({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const isKimi = cliId === 'kimi';
-  const isClaude = cliId === 'claude';
+  const feats = CLI_FEATURES[cliId];
+  const planSupported = feats?.plan ?? false;
+  const goalSupported = feats?.goal ?? false;
   const planOn = current === 'plan';
   const goalActive = Boolean(goalOn);
-  const supported = isKimi || isClaude;
+  const supported = planSupported || goalSupported;
 
   useEffect(() => {
     if (!open) return;
@@ -58,12 +59,14 @@ export default function ModeSelector({
     }
   };
 
+  if (!supported) return null; // 该 CLI 无任何模式能力，整体隐藏
+
   return (
     <div className="mode-root" ref={rootRef}>
       <button
         className={`model-selector ${planOn ? 'mode-active' : ''}`}
-        disabled={disabled || !supported}
-        title={supported ? t('mode.title') : t('mode.unsupported')}
+        disabled={disabled}
+        title={t('mode.title')}
         onClick={() => setOpen(!open)}
         type="button"
       >
@@ -74,17 +77,19 @@ export default function ModeSelector({
       {open && (
         <div className="mode-popover">
           {/* 计划 */}
-          <div className="mode-row">
-            <div className="mode-row-text">
-              <div className="mode-row-title">{t('mode.plan')}</div>
-              <div className="hint">{t('mode.planDesc')}</div>
+          {planSupported && (
+            <div className="mode-row">
+              <div className="mode-row-text">
+                <div className="mode-row-title">{t('mode.plan')}</div>
+                <div className="hint">{t('mode.planDesc')}</div>
+              </div>
+              <button
+                className={`toggle ${planOn ? 'on' : ''}`}
+                onClick={() => void togglePlan()}
+              />
             </div>
-            <button
-              className={`toggle ${planOn ? 'on' : ''}`}
-              onClick={() => void togglePlan()}
-            />
-          </div>
-          {/* Swarm */}
+          )}
+          {/* Swarm（暂无 CLI 在 headless/ACP 下可用，保留占位说明） */}
           <div className="mode-row mode-row-disabled" title={t('mode.kimiOnly')}>
             <div className="mode-row-text">
               <div className="mode-row-title">{t('mode.swarm')}</div>
@@ -93,17 +98,18 @@ export default function ModeSelector({
             <button className="toggle" disabled />
           </div>
           {/* 目标（仅 kimi：走 headless -p /goal） */}
-          <div className={`mode-row ${isKimi ? '' : 'mode-row-disabled'}`} title={isKimi ? undefined : t('mode.kimiOnly')}>
-            <div className="mode-row-text">
-              <div className="mode-row-title">{t('mode.goal')}</div>
-              <div className="hint">{t('mode.goalDesc')}</div>
+          {goalSupported && (
+            <div className="mode-row">
+              <div className="mode-row-text">
+                <div className="mode-row-title">{t('mode.goal')}</div>
+                <div className="hint">{t('mode.goalDesc')}</div>
+              </div>
+              <button
+                className={`toggle ${goalActive ? 'on' : ''}`}
+                onClick={() => void toggleGoal()}
+              />
             </div>
-            <button
-              className={`toggle ${goalActive ? 'on' : ''}`}
-              disabled={!isKimi}
-              onClick={() => void toggleGoal()}
-            />
-          </div>
+          )}
         </div>
       )}
     </div>

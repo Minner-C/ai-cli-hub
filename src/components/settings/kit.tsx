@@ -55,7 +55,7 @@ export function FormRow({
   desc,
   children,
 }: {
-  label: string;
+  label: ReactNode;
   desc?: string;
   children: ReactNode;
 }) {

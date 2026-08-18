@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useHubStore } from '../../store';
 import { PageHeader, InfoBanner, Section, FormRow } from './kit';
 import { AuthCard } from './AuthTab';
+import { FeatureBlocks } from './featureBlocks';
 import { ArrowLeft } from 'lucide-react';
 import type { CliId } from '../../../electron/shared';
 import type { RawConfig } from '../../../electron/cliConfigManager';
@@ -128,17 +129,22 @@ interface FieldDef {
   label: string;
   type: FieldType;
   options?: string[];
+  optionsFromModels?: boolean; // kimi：选项取 config.toml [models] 表的键
 }
 
 function kimiFields(): FieldDef[] {
+  // 以官方文档为准（config-files.html）：max_retries_per_step 已在 0.32.0 废弃，改名 max_attempts_per_step
   return [
-    { key: 'default_model', label: 'default_model', type: 'text' },
+    { key: 'default_model', label: 'default_model', type: 'select', optionsFromModels: true },
     { key: 'default_permission_mode', label: 'default_permission_mode', type: 'select', options: ['manual', 'auto', 'yolo'] },
     { key: 'default_plan_mode', label: 'default_plan_mode', type: 'checkbox' },
+    { key: 'merge_all_available_skills', label: 'merge_all_available_skills', type: 'checkbox' },
+    { key: 'builtin_product_skills', label: 'builtin_product_skills', type: 'checkbox' },
     { key: 'telemetry', label: 'telemetry', type: 'checkbox' },
     { key: 'thinking.enabled', label: 'thinking.enabled', type: 'checkbox' },
     { key: 'thinking.effort', label: 'thinking.effort', type: 'select', options: ['low', 'medium', 'high', 'xhigh', 'max'] },
-    { key: 'loop_control.max_retries_per_step', label: 'loop_control.max_retries_per_step', type: 'number' },
+    { key: 'loop_control.max_steps_per_turn', label: 'loop_control.max_steps_per_turn', type: 'number' },
+    { key: 'loop_control.max_attempts_per_step', label: 'loop_control.max_attempts_per_step', type: 'number' },
     { key: 'loop_control.reserved_context_size', label: 'loop_control.reserved_context_size', type: 'number' },
   ];
 }
@@ -154,31 +160,40 @@ const SIMPLE_FIELDS: Partial<Record<CliId, FieldDef[]>> = {
     { key: 'alwaysThinkingEnabled', label: 'alwaysThinkingEnabled', type: 'checkbox' },
   ],
   gemini: [
-    { key: 'model', label: 'model', type: 'text' },
-    { key: 'theme', label: 'theme', type: 'select', options: ['auto', 'light', 'dark'] },
-    { key: 'autoAccept', label: 'autoAccept', type: 'checkbox' },
-    { key: 'selectedAuthType', label: 'selectedAuthType', type: 'select', options: ['oauth-personal', 'gemini-api-key', 'vertex-ai', 'cloud-shell'] },
-    { key: 'autoStartMcps', label: 'autoStartMcps', type: 'checkbox' },
-    { key: 'usageStatisticsEnabled', label: 'usageStatisticsEnabled', type: 'checkbox' },
-    { key: 'telemetry.enabled', label: 'telemetry.enabled', type: 'checkbox' },
+    // 以 gemini-cli 捆绑文档 docs/cli/settings.md 的 v2 嵌套路径为准
+    { key: 'model.name', label: 'model.name', type: 'text' },
+    { key: 'general.defaultApprovalMode', label: 'general.defaultApprovalMode', type: 'select', options: ['default', 'auto_edit', 'plan'] },
+    { key: 'general.enableAutoUpdate', label: 'general.enableAutoUpdate', type: 'checkbox' },
+    { key: 'general.maxAttempts', label: 'general.maxAttempts', type: 'number' },
+    { key: 'general.sessionRetention.enabled', label: 'general.sessionRetention.enabled', type: 'checkbox' },
+    { key: 'general.sessionRetention.maxAge', label: 'general.sessionRetention.maxAge', type: 'text' },
+    { key: 'model.maxSessionTurns', label: 'model.maxSessionTurns', type: 'number' },
+    { key: 'model.compressionThreshold', label: 'model.compressionThreshold', type: 'number' },
+    { key: 'security.auth.selectedType', label: 'security.auth.selectedType', type: 'select', options: ['oauth-personal', 'gemini-api-key', 'vertex-ai', 'cloud-shell'] },
+    { key: 'security.folderTrust.enabled', label: 'security.folderTrust.enabled', type: 'checkbox' },
+    { key: 'ui.hideBanner', label: 'ui.hideBanner', type: 'checkbox' },
+    { key: 'skills.enabled', label: 'skills.enabled', type: 'checkbox' },
+    { key: 'hooksConfig.enabled', label: 'hooksConfig.enabled', type: 'checkbox' },
   ],
   qwen: [
+    // qwen-code（gemini fork）实测键：tools.approvalMode / privacy.usageStatisticsEnabled / general.checkpointing
     { key: 'model.name', label: 'model.name', type: 'text' },
-    { key: 'model.reasoningEffort', label: 'model.reasoningEffort', type: 'select', options: ['low', 'medium', 'high', 'xhigh', 'max'] },
     { key: 'tools.approvalMode', label: 'tools.approvalMode', type: 'select', options: ['plan', 'default', 'auto-edit', 'auto', 'yolo'] },
-    { key: 'ui.theme', label: 'ui.theme', type: 'text' },
+    { key: 'tools.autoAccept', label: 'tools.autoAccept', type: 'checkbox' },
+    { key: 'general.checkpointing.enabled', label: 'general.checkpointing.enabled', type: 'checkbox' },
     { key: 'privacy.usageStatisticsEnabled', label: 'privacy.usageStatisticsEnabled', type: 'checkbox' },
-    { key: 'telemetry.enabled', label: 'telemetry.enabled', type: 'checkbox' },
+    { key: 'security.auth.selectedType', label: 'security.auth.selectedType', type: 'text' },
+    { key: 'ui.theme', label: 'ui.theme', type: 'text' },
   ],
   codex: [
+    // 以 codex.exe 二进制内嵌配置键实测为准（disable_response_storage / show_shell_agent_output 已不存在）
     { key: 'model', label: 'model', type: 'text' },
     { key: 'model_reasoning_effort', label: 'model_reasoning_effort', type: 'select', options: ['minimal', 'low', 'medium', 'high'] },
+    { key: 'plan_mode_reasoning_effort', label: 'plan_mode_reasoning_effort', type: 'select', options: ['minimal', 'low', 'medium', 'high'] },
     { key: 'approval_policy', label: 'approval_policy', type: 'select', options: ['untrusted', 'on-failure', 'on-request', 'never'] },
     { key: 'sandbox_mode', label: 'sandbox_mode', type: 'select', options: ['read-only', 'workspace-write', 'danger-full-access'] },
     { key: 'hide_agent_reasoning', label: 'hide_agent_reasoning', type: 'checkbox' },
-    { key: 'show_shell_agent_output', label: 'show_shell_agent_output', type: 'checkbox' },
     { key: 'skip_git_repo_check', label: 'skip_git_repo_check', type: 'checkbox' },
-    { key: 'disable_response_storage', label: 'disable_response_storage', type: 'checkbox' },
   ],
   pi: [
     { key: 'defaultProvider', label: 'defaultProvider', type: 'text' },
@@ -296,6 +311,10 @@ function FormBlock({ cliId, busy, onSaved }: { cliId: CliId; busy: boolean; onSa
     <Section title={t('cliSettings.commonSettings')} desc={t('cliSettings.advancedHint')}>
       {fields.map((f) => {
         const value = getPath(doc, f.key);
+        // kimi default_model：选项实时取 config.toml 的 [models] 表键
+        const options = f.optionsFromModels
+          ? Object.keys((doc.models as Record<string, unknown>) ?? {})
+          : f.options;
         return (
           <FormRow
             key={f.key}
@@ -318,7 +337,11 @@ function FormBlock({ cliId, busy, onSaved }: { cliId: CliId; busy: boolean; onSa
                 onChange={(e) => void saveField(f.key, e.target.value)}
               >
                 <option value="">—</option>
-                {f.options!.map((o) => (
+                {/* 当前值不在预设选项里时保留显示（如自定义模型别名） */}
+                {value !== undefined && value !== '' && !(options ?? []).includes(String(value)) && (
+                  <option value={String(value)}>{String(value)}</option>
+                )}
+                {(options ?? []).map((o) => (
                   <option key={o} value={o}>
                     {t(`cliFields.opt.${o}`, { defaultValue: o })}
                   </option>
@@ -430,6 +453,7 @@ export default function CliSettingsPage({ cliId, onBack }: { cliId: CliId; onBac
       {busy && <InfoBanner>{t('cliSettings.busyHint')}</InfoBanner>}
       <AuthCard cliId={cliId} displayName={cli?.displayName ?? cliId} installed={cli?.installed ?? false} />
       <VersionBlock cliId={cliId} installed={cli?.installed ?? false} installHint={cli?.installHint ?? ''} />
+      <FeatureBlocks cliId={cliId} />
       <FormBlock cliId={cliId} busy={busy} onSaved={() => undefined} />
       <AdvancedEditor cliId={cliId} busy={busy} />
     </div>

@@ -15,6 +15,7 @@ const KEY_ENV: Partial<Record<CliId, string>> = {
   gemini: 'GEMINI_API_KEY',
   codex: 'OPENAI_API_KEY',
   qwen: 'BAILIAN_CODING_PLAN_API_KEY',
+  dsh: 'DEEPSEEK_API_KEY',
   pi: 'PI_API_KEY',
   hermes: 'NOUS_API_KEY',
   // kimi 走 OAuth/设备码，无通用 key env，不注入
@@ -129,6 +130,21 @@ export function detectAuth(cli: CliId): CliAuthStatus {
       const cred = firstExisting([path.join(home(), '.pi', 'settings.json')]);
       return cred ? { source: 'logged-in', detail: cred } : { source: 'none', detail: '' };
     }
+    case 'dsh': {
+      // dsh 的凭证文件：~/.dsh/.credentials.yaml（YAML 键值，含 DEEPSEEK_API_KEY）
+      // 用户在 dsh web 里配置的 key 直接识别，无需在应用内重复填
+      const credFile = path.join(home(), '.dsh', '.credentials.yaml');
+      try {
+        if (fs.existsSync(credFile)) {
+          const text = fs.readFileSync(credFile, 'utf8');
+          const m = /^DEEPSEEK_API_KEY:\s*(\S+)\s*$/m.exec(text);
+          if (m?.[1]) return { source: 'logged-in', detail: credFile };
+        }
+      } catch {
+        // 读取失败按未配置处理
+      }
+      return { source: 'none', detail: '' };
+    }
     default:
       // qwen / opencode / aider：仅支持 env / 应用内 key（上方已处理）
       return { source: 'none', detail: '' };
@@ -146,6 +162,7 @@ export function detectAllAuth(): Record<CliId, CliAuthStatus> {
     aider: detectAuth('aider'),
     pi: detectAuth('pi'),
     hermes: detectAuth('hermes'),
+    dsh: detectAuth('dsh'),
   };
 }
 

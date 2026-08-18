@@ -66,6 +66,14 @@ export const CLI_ADAPTERS: Record<CliId, CliAdapter> = {
     args: () => [],
     summaryPrompt: 'Please summarize in ~200 words: current progress, key decisions, and pending tasks. Plain text only, no tools.',
   },
+  dsh: {
+    id: 'dsh',
+    displayName: 'DeepSeek Harness',
+    executable: 'dsh',
+    installHint: 'npm install -g @deepseek-ai/dsh',
+    args: () => [],
+    summaryPrompt: 'Please summarize in ~200 words: current progress, key decisions, and pending tasks. Plain text only, no tools.',
+  },
   aider: {
     id: 'aider',
     displayName: 'Aider',

@@ -1702,6 +1702,16 @@ button {
 }
 .install-output.error { border-left: 2px solid var(--danger); }
 
+/* 设置页分区内的分组小标题（如 dsh 插件的用户/内置分组） */
+.settings-subhead {
+  margin: 10px 0 2px;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-secondary, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 /* ---- 运行时环境状态条 ---- */
 .runtime-banner {
   margin: 8px 0 12px;
@@ -2721,3 +2731,30 @@ button {
 .mode-row-title { font-size: var(--font-md); font-weight: 500; }
 .mode-row-disabled { opacity: 0.45; }
 .mode-row-disabled .toggle { cursor: not-allowed; }
+
+/* 文件夹分组任务列表 */
+.dir-head {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 10px 4px; margin-top: 6px;
+  cursor: pointer; user-select: none; border-radius: var(--radius-sm);
+  font-size: var(--font-xs); font-weight: 600; color: var(--fg);
+}
+.dir-head:hover { background: var(--bg-hover); }
+.dir-icon { color: var(--warning, #d9a441); flex-shrink: 0; }
+.dir-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dir-count { margin-left: auto; font-weight: 400; }
+.dir-head ~ div { padding-left: 8px; }
+.task-time { margin-left: auto; flex-shrink: 0; opacity: 0.6; }
+.session-item .hint { display: flex; align-items: center; gap: 6px; }
+
+/* 任务行元信息对齐：CLI 名不换行省略，用量与时间固定右侧 */
+.session-item .hint {
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap; overflow: hidden;
+}
+.session-item .hint > * { flex-shrink: 0; }
+.session-item .hint > :first-child {
+  flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+.session-item .task-usage { flex-shrink: 0; }
+.session-item .task-time { margin-left: auto; flex-shrink: 0; min-width: 42px; text-align: right; }

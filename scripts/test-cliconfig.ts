@@ -68,7 +68,8 @@ check('json field update keeps others', cdoc.model === 'opus' && cdoc.other === 
 
 // npm 包映射
 check('npm mapping claude', npmPackageOf('claude') === '@anthropic-ai/claude-code');
-check('npm mapping kimi none', npmPackageOf('kimi') === null);
+check('npm mapping kimi', npmPackageOf('kimi') === '@moonshot-ai/kimi-cli');
+check('npm mapping dsh', npmPackageOf('dsh') === '@deepseek-ai/dsh');
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

@@ -6,7 +6,7 @@ import { readConfigNestedField, writeConfigNestedField } from './cliConfigManage
 export interface PermissionSupport {
   supported: boolean;
   note?: string; // 不支持时的说明（i18n key）
-  via: 'args' | 'config' | 'none'; // 生效方式
+  via: 'args' | 'config' | 'rpc' | 'none'; // 生效方式（rpc=dsh web RPC 通道）
 }
 
 export function permissionSupport(cli: CliId): PermissionSupport {
@@ -21,10 +21,22 @@ export function permissionSupport(cli: CliId): PermissionSupport {
       return { supported: true, via: 'config' };
     case 'gemini':
       return { supported: true, via: 'config' };
+    case 'dsh':
+      // 经 dsh web RPC /permission 斜杠命令切换 preset（见 dshChat.applySessionControls）
+      return { supported: true, via: 'rpc' };
     default:
       return { supported: false, via: 'none', note: 'permission.unsupported' };
   }
 }
+
+// dsh 权限 preset 映射（实测 PermissionPresetService 默认两档）：
+// workspace-write = sandbox workspace-write + approval ask；danger-full-access = 完全访问不询问
+export const DSH_PERMISSION_PRESETS: Record<PermissionMode, string> = {
+  default: 'workspace-write',
+  auto: 'workspace-write',
+  plan: 'workspace-write',
+  yolo: 'danger-full-access',
+};
 
 // 档位 → 命令行参数（仅 args 类 CLI 使用）
 export function permissionArgs(cli: CliId, mode?: PermissionMode): string[] {

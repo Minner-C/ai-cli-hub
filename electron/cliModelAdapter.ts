@@ -342,6 +342,37 @@ function syncOpencode(entry: ModelEntry, provider: ProviderEntry): SyncResult {
   return { modelArg: null, configChanged };
 }
 
+// ---- pi 自定义供应商适配器 ----
+// 写入 ~/.pi/agent/models.json 的 providers.<id> 段（火山引擎等 pi 无内置供应商的端点）
+// model 以 <providerId>/<modelId> 形式引用，避免与内置目录同名模型歧义
+function syncPi(entry: ModelEntry, provider: ProviderEntry): SyncResult {
+  const configPath = homeConfig('.pi/agent/models.json');
+  const apiKey = modelRegistry.readProviderKey(provider.id) ?? '';
+  const providerId = `aiclihub-${entry.id}`;
+
+  const protocol = selectProtocol('pi', provider) ?? 'openai';
+  const rawBaseUrl = providerBaseUrl(provider, protocol);
+  const baseUrl = normalizeBaseUrl(rawBaseUrl, protocol);
+  const api = protocol === 'anthropic' ? 'anthropic-messages' : 'openai-completions';
+
+  const doc = readJson<Record<string, unknown>>(configPath);
+  if (!doc.providers || typeof doc.providers !== 'object') doc.providers = {};
+  const providers = doc.providers as Record<string, unknown>;
+
+  const newProvider = {
+    baseUrl,
+    api,
+    apiKey,
+    models: [{ id: entry.modelId, name: entry.displayName }],
+  };
+  const configChanged = isChanged(providers[providerId], newProvider);
+  providers[providerId] = newProvider;
+
+  writeJson(configPath, doc);
+  console.log(`[cli-adapter] pi: provider=${providerId} model=${entry.modelId} api=${api} (changed=${configChanged})`);
+  return { modelArg: `${providerId}/${entry.modelId}`, configChanged };
+}
+
 // ---- hermes 适配器（additive 模式）----
 // 写入 ~/.hermes/config.yaml 的 custom_providers.<id> 段
 // hermes 仅支持 openai 协议
@@ -390,7 +421,18 @@ export function syncCliCustomModel(cli: CliId, entry: ModelEntry): SyncResult {
     case 'qwen': return syncQwen(entry, provider);
     case 'opencode': return syncOpencode(entry, provider);
     case 'hermes': return syncHermes(entry, provider);
-    // aider/pi 读环境变量，无需配置文件写入
+    case 'pi': {
+      // pi：z.ai 系用内置供应商前缀；其他（如火山引擎）写入 ~/.pi/agent/models.json 自定义供应商
+      const base = (providerBaseUrl(provider, selectProtocol('pi', provider) ?? 'openai') ?? '').toLowerCase();
+      if (base.includes('open.bigmodel.cn')) {
+        return { modelArg: `zai-coding-cn/${entry.modelId}`, configChanged: false };
+      }
+      if (base.includes('z.ai')) {
+        return { modelArg: `zai/${entry.modelId}`, configChanged: false };
+      }
+      return syncPi(entry, provider);
+    }
+    // aider 读环境变量，无需配置文件写入
     default: return { modelArg: entry.modelId || null, configChanged: false };
   }
 }

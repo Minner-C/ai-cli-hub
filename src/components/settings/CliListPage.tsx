@@ -1,14 +1,14 @@
 // CLI 设置列表页：安装状态机（idle/installing/success/error）+ 行内输出 + 一键安装/更新
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, ChevronDown, Download, RefreshCw, Check, AlertCircle, Sparkles } from 'lucide-react';
+import { ChevronRight, ChevronDown, Download, RefreshCw, Check, AlertCircle, Sparkles, Globe, Terminal } from 'lucide-react';
 import { useHubStore } from '../../store';
 import { PageHeader, SettingRow, InfoBanner } from './kit';
 import RuntimeBanner from './RuntimeBanner';
 import BrandLogo from '../BrandLogo';
 import type { CliId } from '../../../electron/shared';
 
-const CLI_IDS: CliId[] = ['kimi', 'claude', 'gemini', 'codex', 'qwen', 'opencode', 'aider', 'pi', 'hermes'];
+const CLI_IDS: CliId[] = ['kimi', 'claude', 'gemini', 'codex', 'qwen', 'opencode', 'aider', 'pi', 'hermes', 'dsh'];
 
 type InstallStatus = 'idle' | 'installing' | 'success' | 'error';
 
@@ -110,7 +110,9 @@ export default function CliListPage({ onOpen }: { onOpen: (cliId: CliId) => void
                 desc={<VersionText cliId={id} installed={installed} />}
                 actions={
                   installed ? (
-                    <ChevronRight size={15} className="hint" />
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <ChevronRight size={15} className="hint" />
+                    </span>
                   ) : st.status === 'installing' ? (
                     <span className="install-progress">
                       <RefreshCw size={13} className="spin" />

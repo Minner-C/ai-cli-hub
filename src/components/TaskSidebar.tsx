@@ -4,10 +4,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  FolderTree, MoreHorizontal, Pencil, Pin, PinOff, Search, Settings as SettingsIcon, Undo2, X, FolderOpen,
+  FolderTree, MoreHorizontal, Pencil, Pin, PinOff, Search, Settings as SettingsIcon, Undo2, X, FolderOpen, Folder, ChevronRight,
 } from 'lucide-react';
 import { useHubStore } from '../store';
-import { groupOf, sortTasks, type TaskGroup, type Task } from '../../electron/shared';
+import { sortTasks, type Task } from '../../electron/shared';
 import FilePanel from './FilePanel';
 
 function fmtTokens(n: number): string {
@@ -29,7 +29,19 @@ function TaskUsageBadge({ taskId }: { taskId: string }) {
   return <span className="task-usage">{fmtTokens(usage.input + usage.output)}</span>;
 }
 
-const GROUP_ORDER: TaskGroup[] = ['today', 'yesterday', 'week', 'earlier'];
+
+
+// 相对时间：刚刚 / N分钟 / N小时 / N天
+function relTime(ts: number, t: (k: string, o?: Record<string, unknown>) => string): string {
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return t('sidebar.time.justNow');
+  if (min < 60) return t('sidebar.time.minutes', { n: min });
+  const h = Math.floor(min / 60);
+  if (h < 24) return t('sidebar.time.hours', { n: h });
+  const d = Math.floor(h / 24);
+  return t('sidebar.time.days', { n: d });
+}
 
 // 任务项「更多」下拉菜单
 function MoreMenu({
@@ -120,15 +132,32 @@ export default function TaskSidebar({ onNewChat }: { onNewChat: () => void }) {
     return sortTasks(list);
   }, [tasks, query, activeOnly, pendingDelete]);
 
-  const groups = useMemo(() => {
-    const now = Date.now();
-    const map = new Map<TaskGroup, Task[]>();
+  // 按项目文件夹分组：键 = cwd（空为未分组）；组内沿用 sortTasks 顺序
+  const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(new Set());
+  const folderGroups = useMemo(() => {
+    const map = new Map<string, Task[]>();
     for (const task of filtered) {
-      const g = groupOf(task.updatedAt, now);
-      map.set(g, [...(map.get(g) ?? []), task]);
+      const dir = task.cwd || '';
+      map.set(dir, [...(map.get(dir) ?? []), task]);
     }
-    return map;
+    // 组排序：按组内最新任务时间倒序；未分组垫底
+    return Array.from(map.entries()).sort(([da, ta], [db, tb]) => {
+      if (!da) return 1;
+      if (!db) return -1;
+      const la = Math.max(...ta.map((x) => x.updatedAt));
+      const lb = Math.max(...tb.map((x) => x.updatedAt));
+      return lb - la;
+    });
   }, [filtered]);
+
+  const toggleDir = (dir: string) => {
+    setCollapsedDirs((prev) => {
+      const next = new Set(prev);
+      if (next.has(dir)) next.delete(dir);
+      else next.add(dir);
+      return next;
+    });
+  };
 
   const doDelete = (task: Task) => {
     if (pendingDelete) clearTimeout(pendingDelete.timer);
@@ -176,10 +205,18 @@ export default function TaskSidebar({ onNewChat }: { onNewChat: () => void }) {
       </div>
 
       <div className="sidebar-tasks">
-        {GROUP_ORDER.filter((g) => (groups.get(g) ?? []).length > 0).map((g) => (
-          <div key={g}>
-            <h3>{t(`sidebar.group.${g}`)}</h3>
-            {(groups.get(g) ?? []).map((task) => {
+        {folderGroups.map(([dir, dirTasks]) => {
+          const dirName = dir ? dir.split(/[\\/]/).filter(Boolean).pop() ?? dir : t('sidebar.ungrouped');
+          const collapsed = collapsedDirs.has(dir);
+          return (
+          <div key={dir || '__ungrouped__'}>
+            <div className="dir-head" title={dir || t('sidebar.ungrouped')} onClick={() => toggleDir(dir)}>
+              <Folder size={13} className="dir-icon" />
+              <ChevronRight size={12} className={`ip-chevron ${collapsed ? '' : 'open'}`} />
+              <span className="dir-name">{dirName}</span>
+              <span className="hint dir-count">{dirTasks.length}</span>
+            </div>
+            {!collapsed && dirTasks.map((task) => {
               const isActive = task.id === activeTaskId;
               const filesOpen = expandedFileTaskId === task.id;
               return (
@@ -214,6 +251,7 @@ export default function TaskSidebar({ onNewChat }: { onNewChat: () => void }) {
                       )}
                       <div className="hint">
                         {cliName(task.cli)} <TaskUsageBadge taskId={task.id} />
+                        <span className="task-time">{relTime(task.updatedAt, t)}</span>
                       </div>
                     </div>
                     <div className="session-actions">
@@ -255,7 +293,8 @@ export default function TaskSidebar({ onNewChat }: { onNewChat: () => void }) {
               );
             })}
           </div>
-        ))}
+          );
+        })}
 
         {pendingDelete && (
           <div className="delete-toast">

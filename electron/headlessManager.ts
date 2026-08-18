@@ -240,53 +240,68 @@ const aiderAdapter = makeTextAdapter((message) => ['--message', message, '--yes-
 const hermesAdapter = makeTextAdapter((message) => ['run', message]);
 
 // ---------- pi（极简开源 coding agent，支持 15+ 模型提供商）----------
-// pi -p "<msg>" --output-format json
+// pi -p "<msg>" --mode json（NDJSON 输出；pi 无 --output-format 参数）
+// 会话续接：--session <id>（支持部分 UUID）
 const piAdapter: CliHeadlessAdapter = {
-  buildArgs: (message) => ['-p', message, '--output-format', 'json'],
+  buildArgs: (message, sessionId) => {
+    const args = ['-p', message, '--mode', 'json'];
+    if (sessionId) args.push('--session', sessionId);
+    return args;
+  },
   parseLine: (line) => {
     const obj = safeJson(line);
     if (!obj) return [];
     const events: Array<StreamEventPayload> = [];
-    
-    // Pi 的 JSON 输出格式（基于调研和文档）
-    // 文本增量
-    if (obj.type === 'text' && typeof obj.text === 'string' && obj.text) {
-      events.push({ type: 'delta', text: obj.text });
+    const ev = obj.assistantMessageEvent as Record<string, unknown> | undefined;
+
+    // 会话 ID（pi: {"type":"session","id":...}）
+    if (obj.type === 'session' && (typeof obj.session_id === 'string' || typeof obj.id === 'string')) {
+      events.push({ type: 'session', cli: 'pi', sessionId: String(obj.session_id ?? obj.id) });
     }
-    // 工具调用
-    else if (obj.type === 'tool_use' || obj.type === 'tool_call') {
+    // 正文/思考增量（message_update.assistantMessageEvent）
+    else if (obj.type === 'message_update' && ev) {
+      if (ev.type === 'text_delta' && typeof ev.delta === 'string') {
+        events.push({ type: 'delta', text: ev.delta });
+      } else if ((ev.type === 'thinking_delta' || ev.type === 'reasoning_delta') && typeof ev.delta === 'string') {
+        events.push({ type: 'thinking', text: ev.delta });
+      }
+    }
+    // 工具调用开始
+    else if (obj.type === 'tool_execution_start') {
       events.push({
         type: 'tool_call',
-        toolId: String(obj.id ?? obj.tool_id ?? `pi-tool-${Date.now()}`),
-        name: String(obj.name ?? 'tool'),
-        args: typeof obj.input === 'string' ? obj.input : JSON.stringify(obj.input ?? {}),
+        toolId: String(obj.toolCallId ?? obj.id ?? `pi-tool-${Date.now()}`),
+        name: String(obj.toolName ?? obj.name ?? 'tool'),
+        args: typeof obj.args === 'string' ? obj.args : JSON.stringify(obj.args ?? {}),
       });
     }
-    // 工具结果
-    else if (obj.type === 'tool_result') {
+    // 工具执行结束
+    else if (obj.type === 'tool_execution_end') {
       events.push({
         type: 'tool_result',
-        toolId: String(obj.tool_use_id ?? obj.tool_id ?? 'tool'),
-        result: typeof obj.output === 'string' ? obj.output : JSON.stringify(obj.output ?? ''),
-        isError: obj.is_error === true,
+        toolId: String(obj.toolCallId ?? obj.id ?? 'tool'),
+        result: typeof obj.result === 'string' ? obj.result : JSON.stringify(obj.result ?? ''),
+        isError: obj.isError === true,
       });
     }
-    // 会话 ID
-    else if (obj.type === 'session' && typeof obj.session_id === 'string') {
-      events.push({ type: 'session', cli: 'pi', sessionId: obj.session_id });
-    }
-    // 完成标志
-    else if (obj.type === 'done' || obj.type === 'complete') {
-      events.push({ type: 'done' });
+    // 消息结束：真实 token 用量
+    else if (obj.type === 'message_end') {
+      const msg = obj.message as Record<string, unknown> | undefined;
+      const usage = msg?.usage as Record<string, unknown> | undefined;
+      if (usage && typeof usage.input === 'number' && typeof usage.output === 'number') {
+        events.push({ type: 'usage', inputTokens: usage.input, outputTokens: usage.output, estimated: false });
+      }
     }
     // 错误
     else if (obj.type === 'error' && typeof obj.message === 'string') {
       events.push({ type: 'error', message: obj.message });
     }
-    
     return events;
   },
 };
+
+// dsh：dsh --profile headless "<task>"（纯文本最终消息，无流式/无会话续接）
+const dshAdapter = makeTextAdapter((message) => ['--profile', 'headless', message]);
 
 export const HEADLESS_ADAPTERS: Record<CliId, CliHeadlessAdapter> = {
   kimi: kimiAdapter,
@@ -298,6 +313,7 @@ export const HEADLESS_ADAPTERS: Record<CliId, CliHeadlessAdapter> = {
   aider: aiderAdapter,
   pi: piAdapter,
   hermes: hermesAdapter,
+  dsh: dshAdapter,
 };
 
 // kimi text 模式 stdout：transcript 风格，「• 」开头的段落行与两空格缩进的延续行

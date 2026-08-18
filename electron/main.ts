@@ -21,6 +21,9 @@ import * as cliConfig from './cliConfigManager';
 import * as filePanel from './filePanel';
 import { runCommand } from './installer';
 import * as testRunner from './testRunner';
+import { ensureDshWeb, stopDshWeb, dshStatus } from './dshService';
+import * as dshChat from './dshChat';
+import * as dshMgr from './dshManager';
 import { safeSend } from './safeSend';
 import * as modelRegistry from './modelRegistry';
 import { syncCliCustomModel } from './cliModelAdapter';
@@ -570,6 +573,55 @@ function registerIpc() {
 
     const persistOnEvent = createPersistOnEvent(taskId, effective);
 
+    // dsh 路径：直连 dsh web /api（unary RPC + mux WS 事件流），不走 ACP/headless
+    if (routeCli === 'dsh') {
+      void (async () => {
+        let hadContent = false;
+        const trackEvent = (ev: StreamEventPayload) => {
+          if (ev.type === 'delta' || ev.type === 'thinking' || ev.type === 'tool_call') hadContent = true;
+          persistOnEvent(ev);
+        };
+        try {
+          const r = await dshChat.prompt(taskId, {
+            cwd: task.cwd,
+            text: effective,
+            sessionId: task.cliSessions.dsh,
+            model: routeModel,
+            effort: task.effort,
+            permission: task.permission,
+            planMode: task.planMode,
+            sender: mainWindow?.webContents ?? null,
+            onEvent: trackEvent,
+          });
+          if (r.sessionId && task.cliSessions.dsh !== r.sessionId) {
+            const t = taskStore.getTask(taskId);
+            if (t) {
+              t.cliSessions.dsh = r.sessionId;
+              taskStore.saveTask(t);
+            }
+          }
+          if (!hadContent) {
+            const hint = getSettings().language === 'zh'
+              ? '本轮模型无响应（可能额度受限、上下文超限或连接异常）。请重试，或新建对话/切换 CLI。'
+              : 'No response this turn (quota, context limit, or connection issue). Please retry or switch CLI.';
+            persistOnEvent({ type: 'error', message: hint });
+            safeSend(mainWindow?.webContents, 'task:event', { type: 'error', message: hint, taskId });
+          }
+          persistOnEvent({ type: 'done' });
+          safeSend(mainWindow?.webContents, 'task:event', { type: 'done', taskId });
+          notify(getSettings().language === 'zh' ? '任务完成' : 'Task done', task.title || taskId.slice(-6));
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(`[dsh] task=${taskId} error:`, message);
+          persistOnEvent({ type: 'error', message });
+          persistOnEvent({ type: 'done' });
+          safeSend(mainWindow?.webContents, 'task:event', { type: 'error', message, taskId });
+          safeSend(mainWindow?.webContents, 'task:event', { type: 'done', taskId });
+        }
+      })();
+      return;
+    }
+
     if (useAcp && acpExecutable) {
       // ACP 路径：长驻连接、token 级流式、原生 model/thinking 选择器
       void (async () => {
@@ -592,7 +644,7 @@ function registerIpc() {
             // 优先级：任务级 > kimi config.toml 显式值 > 回退 auto
             permission: permission.acpModeValue(
               routeCli,
-              task.planMode || task.permission === 'plan'
+              task.planMode
                 ? 'plan'
                 : (task.permission ??
                     (routeCli === 'kimi' ? (permission.readPermissionFromConfig('kimi') ?? 'auto') : 'auto')),
@@ -677,6 +729,35 @@ function registerIpc() {
   });
 
   // 自动化测试
+  // dsh web 仅作为对话通道的后端服务（不再提供「打开 Web UI」入口）
+  ipcMain.handle('dsh:startWeb', () => ensureDshWeb());
+  // dsh 设置页：服务控制 / 插件管理 / 凭证 / profile / 默认模型
+  ipcMain.handle('dsh:serviceStatus', () => dshStatus());
+  ipcMain.handle('dsh:stopWeb', async () => {
+    stopDshWeb();
+    await new Promise((r) => setTimeout(r, 1500));
+    const s = await dshStatus();
+    return s.running
+      ? { ok: false, message: 'dsh web 非本应用启动，无法由此停止（请在其终端关闭）' }
+      : { ok: true };
+  });
+  ipcMain.handle('dsh:profiles', () => dshMgr.listProfiles());
+  ipcMain.handle('dsh:plugins', async (_e, profile: string) => {
+    const resolved = await requireCliPath('dsh');
+    const text = await dshMgr.dumpProfileConfig(toSpawnTarget(resolved), profile);
+    return dshMgr.parseDumpConfig(text);
+  });
+  ipcMain.handle('dsh:setPluginDisabled', (_e, profile: string, id: string, disabled: boolean) =>
+    dshMgr.setPluginDisabled(profile, id, disabled),
+  );
+  ipcMain.handle('dsh:installPlugin', (_e, profile: string, pkg: string) => dshMgr.installPlugin(profile, pkg));
+  ipcMain.handle('dsh:uninstallPlugin', (_e, profile: string, name: string) => dshMgr.uninstallPlugin(profile, name));
+  ipcMain.handle('dsh:credentialStatus', () => dshMgr.readCredentialStatus());
+  ipcMain.handle('dsh:writeCredential', (_e, ref: string, value: string | null) => dshMgr.writeCredentialKey(ref, value));
+  ipcMain.handle('dsh:getDefaultModel', (_e, profile: string) => dshMgr.getDefaultModelOverride(profile));
+  ipcMain.handle('dsh:setDefaultModel', (_e, profile: string, provider: string, model: string) =>
+    dshMgr.setDefaultModelOverride(profile, provider, model),
+  );
   ipcMain.handle('test:run', async (_e, taskId: string, cwd: string, script: string, baseURL: string, headless: boolean) =>
     testRunner.runTest(taskId, cwd, script, baseURL, headless, (chunk) => {
       safeSend(mainWindow?.webContents, 'test:output', taskId, chunk);
@@ -712,6 +793,7 @@ function registerIpc() {
   ipcMain.handle('task:stop', (_e, taskId: string) => {
     headless.stop(taskId);
     void acp.stop(taskId);
+    void dshChat.cancel(taskStore.getTask(taskId)?.cliSessions.dsh);
     // 停止后立即收尾：清 streaming/运行态（kill 后 close 事件也会发 done，这里先补一次保证 UI 即时复位）
     safeSend(mainWindow?.webContents, 'task:event', { type: 'done', taskId });
   });
@@ -786,8 +868,31 @@ function registerIpc() {
 
   // 账号与密钥
   ipcMain.handle('auth:status', () => auth.detectAllAuth());
-  ipcMain.handle('auth:saveKey', (_e, cliId: CliId, key: string) => auth.saveApiKey(cliId, key));
-  ipcMain.handle('auth:clearKey', (_e, cliId: CliId) => auth.clearApiKey(cliId));
+  ipcMain.handle('auth:saveKey', (_e, cliId: CliId, key: string) => {
+    const r = auth.saveApiKey(cliId, key);
+    // dsh 凭证持久化在 ~/.dsh/.env（dsh-credentials-local），同时同步给运行中的 dsh web
+    if (cliId === 'dsh') {
+      try {
+        dshMgr.writeCredentialKey('DEEPSEEK_API_KEY', key);
+      } catch {
+        // .env 写失败不阻断应用内保存
+      }
+      void dshChat.syncKey(key).catch(() => undefined);
+    }
+    return r;
+  });
+  ipcMain.handle('auth:clearKey', (_e, cliId: CliId) => {
+    const r = auth.clearApiKey(cliId);
+    if (cliId === 'dsh') {
+      try {
+        dshMgr.writeCredentialKey('DEEPSEEK_API_KEY', null);
+      } catch {
+        // 忽略
+      }
+      void dshChat.syncKey(null).catch(() => undefined);
+    }
+    return r;
+  });
   ipcMain.handle('auth:login', (_e, cliId: CliId) => auth.launchLogin(cliId));
 
   // 统一模型列表
@@ -1090,7 +1195,7 @@ function registerIpc() {
   );
   ipcMain.handle('mcp:presets', () => mcp.listMcpPresets());
 
-  ipcMain.handle('app:info', () => ({ version: app.getVersion() }));
+  ipcMain.handle('app:info', () => ({ version: app.getVersion(), home: app.getPath('home') }));
   ipcMain.handle('settings:get', () => getSettings());
   ipcMain.handle('settings:set', (_e, partial: Partial<AppSettings>) => setSettings(partial));
 
@@ -1145,4 +1250,5 @@ app.on('before-quit', () => {
   isQuitting = true;
   headless.stopAll();
   acp.killAll();
+  dshChat.stopAll();
 });

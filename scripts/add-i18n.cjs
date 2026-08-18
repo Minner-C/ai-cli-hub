@@ -1,0 +1,198 @@
+// 一次性脚本：为各 CLI 设置页差异区块补 i18n 键（zh/en）
+const fs = require('fs');
+const path = require('path');
+
+const zhAdd = {
+  dsh: {
+    service: 'Web 服务',
+    serviceDesc: 'dsh web 服务（对话通道与 Web UI 共用，端口 3080）',
+    serviceRunning: '运行中',
+    serviceStopped: '未运行',
+    servicePort: '监听端口 {{port}}',
+    stop: '停止',
+    start: '启动并打开',
+    openWeb: '打开 Web UI',
+    credentials: '凭证（dsh 数据目录）',
+    credentialsDesc: 'dsh 凭证服务从此文件读取 API Key',
+    credentialSet: '已配置（值已隐藏）',
+    credentialMissing: '未配置 —— 对话会因缺少 DEEPSEEK_API_KEY 失败',
+    setKey: '设置',
+    replaceKey: '替换',
+    clearKey: '清除',
+    credentialHint: '在此处/账号卡设置的 Key 会同时写入此文件并同步给运行中的 dsh web',
+    plugins: '插件管理',
+    pluginsDesc: 'dsh 插件即 cordis 插件树条目；安装等价于 dsh plugin --profile <p> add（profile 目录内 pnpm add）',
+    pluginsLoadFailed: '插件树加载失败（需 dsh 已安装且 profile 已初始化，先启动一次 Web 服务）',
+    pluginsUser: '用户安装',
+    pluginsBuiltin: '内置插件（{{count}}）',
+    uninstall: '卸载',
+    installPlugin: '安装插件',
+    installPluginHint: 'npm 包名，如 @scope/dsh-plugin-xxx；装完需重启 Web 服务生效',
+    defaultModel: '默认模型',
+    defaultModelDesc: '覆盖 agent-default-model 插件的 provider/model（写入 cordis.patch.yml 用户层）',
+    defaultModelHint: '留空则使用 bundle 内置默认（deepseek-official / deepseek-v4-flash）；改完需重启 Web 服务',
+    profiles: 'Profiles',
+    profilesDesc: '~/.dsh/profiles 下的启动配置栈；每个 profile 由若干 bundle 层叠而成',
+    profileNoBundles: '（无 bundle 声明）',
+  },
+  claude: {
+    env: '环境变量（env）',
+    envDesc: '写入 ~/.claude/settings.json 的 env 表；切换供应商（CC Switch）即改这里',
+    envEmpty: '未设置任何环境变量',
+    envDelete: '删除该变量',
+    envAdd: '新增变量',
+    envValue: '值',
+    envHide: '隐藏值',
+    envReveal: '显示值',
+  },
+  codex: {
+    providers: '自定义供应商（model_providers）',
+    providersDesc: 'config.toml 中 [model_providers.*] 表（只读视图，编辑请用下方高级编辑器）',
+    providersEmpty: '未配置自定义供应商',
+  },
+  kimi: {
+    automation: '自动化（hooks / 权限规则 / MCP）',
+    automationDesc: '只读概览；编辑请用下方高级编辑器或 /mcp-config',
+    hooksCount: '生命周期 hooks：{{count}} 条',
+    hooksHint: 'config.toml 的 [[hooks]] 表（PreToolUse 等事件钩子）',
+    rulesCount: '权限规则：{{count}} 条',
+    rulesHint: 'config.toml 的 [[permission.rules]] 表（allow/deny/ask 按序匹配）',
+    mcpEntry: 'MCP 服务器在「设置 → MCP」标签页管理',
+    skillDirs: '额外技能目录',
+    skillDirsDesc: 'extra_skill_dirs：叠加在默认技能目录之上（逗号分隔多个路径）',
+  },
+  qwen: {
+    extensions: '已安装扩展',
+  },
+};
+
+const enAdd = {
+  dsh: {
+    service: 'Web Service',
+    serviceDesc: 'dsh web service (shared by chat channel and Web UI, port 3080)',
+    serviceRunning: 'Running',
+    serviceStopped: 'Stopped',
+    servicePort: 'Listening on port {{port}}',
+    stop: 'Stop',
+    start: 'Start & Open',
+    openWeb: 'Open Web UI',
+    credentials: 'Credentials (dsh data dir)',
+    credentialsDesc: 'The dsh credentials service reads API keys from this file',
+    credentialSet: 'Configured (value hidden)',
+    credentialMissing: 'Not configured — chat fails without DEEPSEEK_API_KEY',
+    setKey: 'Set',
+    replaceKey: 'Replace',
+    clearKey: 'Clear',
+    credentialHint: 'Keys set here or in the account card are written to this file and synced to the running dsh web',
+    plugins: 'Plugin Management',
+    pluginsDesc: 'dsh plugins are cordis plugin-tree entries; installing equals dsh plugin --profile <p> add (pnpm add inside the profile dir)',
+    pluginsLoadFailed: 'Failed to load the plugin tree (dsh must be installed and the profile initialized — start the web service once)',
+    pluginsUser: 'User-installed',
+    pluginsBuiltin: 'Built-in plugins ({{count}})',
+    uninstall: 'Uninstall',
+    installPlugin: 'Install plugin',
+    installPluginHint: 'npm package name, e.g. @scope/dsh-plugin-xxx; restart the web service to take effect',
+    defaultModel: 'Default Model',
+    defaultModelDesc: 'Overrides the agent-default-model plugin provider/model (written to the cordis.patch.yml user layer)',
+    defaultModelHint: 'Leave empty for the bundle default (deepseek-official / deepseek-v4-flash); restart the web service after changing',
+    profiles: 'Profiles',
+    profilesDesc: 'Boot stacks under ~/.dsh/profiles; each profile is composed of bundle layers',
+    profileNoBundles: '(no bundles declared)',
+  },
+  claude: {
+    env: 'Environment Variables (env)',
+    envDesc: 'Written to the env table of ~/.claude/settings.json; provider switching (CC Switch) edits these',
+    envEmpty: 'No environment variables set',
+    envDelete: 'Delete this variable',
+    envAdd: 'Add variable',
+    envValue: 'Value',
+    envHide: 'Hide values',
+    envReveal: 'Reveal values',
+  },
+  codex: {
+    providers: 'Custom Providers (model_providers)',
+    providersDesc: 'The [model_providers.*] tables in config.toml (read-only; edit via the advanced editor below)',
+    providersEmpty: 'No custom providers configured',
+  },
+  kimi: {
+    automation: 'Automation (hooks / permission rules / MCP)',
+    automationDesc: 'Read-only overview; edit via the advanced editor below or /mcp-config',
+    hooksCount: 'Lifecycle hooks: {{count}}',
+    hooksHint: 'The [[hooks]] tables in config.toml (PreToolUse etc.)',
+    rulesCount: 'Permission rules: {{count}}',
+    rulesHint: 'The [[permission.rules]] tables in config.toml (allow/deny/ask, first match wins)',
+    mcpEntry: 'MCP servers are managed in "Settings → MCP" tab',
+    skillDirs: 'Extra Skill Directories',
+    skillDirsDesc: 'extra_skill_dirs: layered on top of the default skill dirs (comma-separated paths)',
+  },
+  qwen: {
+    extensions: 'Installed Extensions',
+  },
+};
+
+const zhFields = {
+  merge_all_available_skills: '合并所有可用技能',
+  builtin_product_skills: '内置产品技能',
+  'loop_control.max_steps_per_turn': '单轮最大步数',
+  'loop_control.max_attempts_per_step': '单步最大尝试次数',
+  'general.defaultApprovalMode': '默认审批模式',
+  'general.enableAutoUpdate': '自动更新',
+  'general.maxAttempts': '请求最大尝试次数',
+  'general.sessionRetention.enabled': '会话自动清理',
+  'general.sessionRetention.maxAge': '会话保留时长',
+  'model.maxSessionTurns': '会话最大轮数',
+  'model.compressionThreshold': '上下文压缩阈值',
+  'security.auth.selectedType': '认证方式',
+  'security.folderTrust.enabled': '文件夹信任',
+  'ui.hideBanner': '隐藏启动横幅',
+  'skills.enabled': '启用技能',
+  'hooksConfig.enabled': '启用 hooks',
+  'tools.approvalMode': '工具审批模式',
+  'tools.autoAccept': '自动接受工具调用',
+  'general.checkpointing.enabled': '文件检查点（可回滚）',
+  'privacy.usageStatisticsEnabled': '使用统计',
+  'ui.theme': '界面主题',
+  'model.name': '对话模型',
+  plan_mode_reasoning_effort: '计划模式推理强度',
+};
+const enFields = {
+  merge_all_available_skills: 'Merge all available skills',
+  builtin_product_skills: 'Built-in product skills',
+  'loop_control.max_steps_per_turn': 'Max steps per turn',
+  'loop_control.max_attempts_per_step': 'Max attempts per step',
+  'general.defaultApprovalMode': 'Default approval mode',
+  'general.enableAutoUpdate': 'Auto update',
+  'general.maxAttempts': 'Max request attempts',
+  'general.sessionRetention.enabled': 'Session auto-cleanup',
+  'general.sessionRetention.maxAge': 'Session retention max age',
+  'model.maxSessionTurns': 'Max session turns',
+  'model.compressionThreshold': 'Context compression threshold',
+  'security.auth.selectedType': 'Auth type',
+  'security.folderTrust.enabled': 'Folder trust',
+  'ui.hideBanner': 'Hide banner',
+  'skills.enabled': 'Enable skills',
+  'hooksConfig.enabled': 'Enable hooks',
+  'tools.approvalMode': 'Tool approval mode',
+  'tools.autoAccept': 'Auto-accept tool calls',
+  'general.checkpointing.enabled': 'File checkpointing (rewind)',
+  'privacy.usageStatisticsEnabled': 'Usage statistics',
+  'ui.theme': 'UI theme',
+  'model.name': 'Chat model',
+  plan_mode_reasoning_effort: 'Plan-mode reasoning effort',
+};
+// select 选项文案
+const zhOpt = { auto_edit: '自动编辑 (auto_edit)', 'oauth-personal': '个人 OAuth', 'gemini-api-key': 'Gemini API Key', 'vertex-ai': 'Vertex AI', 'cloud-shell': 'Cloud Shell', 'auto-edit': '自动编辑', untrusted: '不信任 (untrusted)', 'on-failure': '失败时询问', 'on-request': '每次询问', never: '从不询问', 'read-only': '只读', 'workspace-write': '工作区可写', 'danger-full-access': '完全访问' };
+const enOpt = { auto_edit: 'Auto edit', 'oauth-personal': 'Personal OAuth', 'gemini-api-key': 'Gemini API Key', 'vertex-ai': 'Vertex AI', 'cloud-shell': 'Cloud Shell', 'auto-edit': 'Auto edit', untrusted: 'Untrusted', 'on-failure': 'On failure', 'on-request': 'On request', never: 'Never', 'read-only': 'Read only', 'workspace-write': 'Workspace write', 'danger-full-access': 'Full access' };
+
+for (const [file, nsAdd, fields, opt] of [
+  ['src/i18n/zh.json', zhAdd, zhFields, zhOpt],
+  ['src/i18n/en.json', enAdd, enFields, enOpt],
+]) {
+  const p = path.resolve(file);
+  const doc = JSON.parse(fs.readFileSync(p, 'utf8'));
+  for (const [ns, kv] of Object.entries(nsAdd)) doc[ns] = { ...(doc[ns] ?? {}), ...kv };
+  doc.cliFields = { ...(doc.cliFields ?? {}), ...fields };
+  doc.cliFields.opt = { ...(doc.cliFields.opt ?? {}), ...opt };
+  fs.writeFileSync(p, JSON.stringify(doc, null, 2) + '\n', 'utf8');
+  console.log('updated', file);
+}

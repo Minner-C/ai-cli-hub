@@ -263,6 +263,22 @@ export function routeEnv(entry: ModelEntry, cli: CliId): Record<string, string> 
   if (!provider) return {};
   const route = resolveModelRoute(entry, provider, cli);
   const env: Record<string, string> = {};
+  if (cli === 'pi') {
+    // pi 按自家供应商环境变量认证（docs/providers.md）：
+    // z.ai → ZAI_API_KEY；open.bigmodel.cn → ZAI_CODING_CN_API_KEY；其余回退 OPENAI_*
+    const base = (route.baseUrl ?? '').toLowerCase();
+    const key = readProviderKey(provider.id);
+    if (base.includes('open.bigmodel.cn')) {
+      if (key) env['ZAI_CODING_CN_API_KEY'] = key;
+    } else if (base.includes('z.ai')) {
+      if (key) env['ZAI_API_KEY'] = key;
+    } else {
+      // 其他供应商（火山引擎等）：已写入 ~/.pi/agent/models.json（含 apiKey），不再注入 env
+      // 避免 OPENAI_API_KEY 被 pi 的内置 openai 供应商误用
+      return {};
+    }
+    return env;
+  }
   if (route.envBaseUrl && route.baseUrl !== undefined) {
     const normalized = normalizeBaseUrl(route.baseUrl, route.protocol);
     env[route.envBaseUrl] = normalized;

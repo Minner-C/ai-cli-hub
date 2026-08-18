@@ -1,9 +1,9 @@
 // 权限模式选择器：下拉选择，按任务持久化，按档位着色
-// 支持：claude/codex（命令行参数）、kimi/qwen/gemini（配置文件写入）；其余置灰并 tooltip 说明
+// 显隐由 CLI_FEATURES 能力矩阵决定（不支持的 CLI 直接隐藏，不置灰）
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHubStore } from '../store';
-import type { CliId, PermissionMode } from '../../electron/shared';
+import { CLI_FEATURES, type CliId, type PermissionMode } from '../../electron/shared';
 
 const MODES: PermissionMode[] = ['default', 'auto', 'yolo'];
 
@@ -54,7 +54,7 @@ export default function PermissionSelector({
     };
   }, [cliId]);
 
-  const supported = support?.supported ?? false;
+  const supported = (support?.supported ?? false) && (CLI_FEATURES[cliId]?.permission ?? false);
   // 任务级权限优先，其次配置文件读取的值；未显式设置时回退 auto（headless 场景无交互审批）
   // 兼容旧数据：permission==='plan' 是计划模式独立轴拆分前的残留，按未设置处理
   const rawCurrent = current === 'plan' ? undefined : current;
@@ -70,17 +70,8 @@ export default function PermissionSelector({
   };
 
   if (!supported) {
-    // 不支持的 CLI：置灰下拉 + tooltip
-    return (
-      <select
-        className="model-selector perm-disabled"
-        disabled
-        title={t(support?.note ?? 'permission.unsupported')}
-        value="default"
-      >
-        <option value="default">{t('permission.selectorTitle')} · {t('permission.default')}</option>
-      </select>
-    );
+    // 能力矩阵不支持的 CLI：直接隐藏（不再置灰占位）
+    return null;
   }
 
   return (

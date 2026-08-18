@@ -26,6 +26,8 @@ const CONFIG_FILES: Partial<Record<CliId, ConfigFileDef>> = {
   opencode: { relPath: '.config/opencode/opencode.json', format: 'json' },
   aider: { relPath: '.aider.conf.yml', format: 'yml' },
   hermes: { relPath: '.hermes/config.yaml', format: 'yml' },
+  // dsh 无单一配置文件：用户层是 profile 的 cordis.patch.yml（插件树补丁）
+  dsh: { relPath: '.dsh/profiles/web/cordis.patch.yml', format: 'yml' },
 };
 
 export function configPathOf(cli: CliId): string | null {
@@ -202,11 +204,12 @@ export function detectCliVersion(
 // ---- 更新 ----
 // npm 系包名；kimi 用 kimi upgrade（交互式，终端弹窗）；aider 用 pip
 const NPM_PACKAGES: Partial<Record<CliId, string>> = {
-  kimi: '@moonshot-ai/kimi-cli',
+  kimi: '@moonshot-ai/kimi-code',
   claude: '@anthropic-ai/claude-code',
   gemini: '@google/gemini-cli',
   codex: '@openai/codex',
   qwen: '@qwen-code/qwen-code',
+  dsh: '@deepseek-ai/dsh',
   opencode: 'opencode-ai',
   pi: '@earendil-works/pi-coding-agent',
 };
@@ -310,6 +313,7 @@ const INSTALL_CMD: Partial<Record<CliId, string>> = {
   aider: `pip install aider-chat ${PIP_MIRROR_ARGS}`,
   pi: `npm install -g @earendil-works/pi-coding-agent ${npmPrefixArg()}`,
   hermes: `pip install hermes-agent ${PIP_MIRROR_ARGS}`,
+  dsh: `npm install -g @deepseek-ai/dsh ${npmPrefixArg()}`,
 };
 
 export function installCommandOf(cli: CliId): string | null {

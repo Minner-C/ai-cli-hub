@@ -31,6 +31,13 @@
       "yesterday": "昨天",
       "week": "本周",
       "earlier": "更早"
+    },
+    "ungrouped": "未分组",
+    "time": {
+      "justNow": "刚刚",
+      "minutes": "{{n}}分钟",
+      "hours": "{{n}}小时",
+      "days": "{{n}}天"
     }
   },
   "chat": {
@@ -238,7 +245,8 @@
     "high": "高",
     "followsModel": "该 CLI 的思考强度跟随模型/全局配置，不支持按任务调整",
     "unsupported": "该 CLI 暂不支持思考强度设置",
-    "kimiNote": "通过临时写入 kimi 全局配置生效，仅影响本次调用"
+    "kimiNote": "通过临时写入 kimi 全局配置生效，仅影响本次调用",
+    "max": "最高"
   },
   "provider": {
     "title": "供应商",
@@ -369,7 +377,8 @@
     "zcodeName": "GLM（ZCode）",
     "zcodeBadge": "即将支持",
     "zcodeDesc": "ZCode 是桌面应用，暂无 CLI 无头模式。GLM 模型可经「模型与供应商」中的 GLM (z.ai) 条目使用（claude CLI + Anthropic 兼容端点）",
-    "runHelper": "运行配置助手"
+    "runHelper": "运行配置助手",
+    "openWebUi": "打开 Web UI"
   },
   "cliFields": {
     "default_model": "默认模型",
@@ -462,7 +471,7 @@
       "minimal": "最少",
       "plan": "仅分析 (plan)",
       "default": "默认（需审批）",
-      "auto-edit": "自动批准编辑",
+      "auto-edit": "自动编辑",
       "acceptEdits": "自动接受编辑",
       "bypassPermissions": "跳过权限检查",
       "light": "浅色",
@@ -473,15 +482,15 @@
       "local": "本地",
       "docker": "Docker 容器",
       "always": "始终",
-      "never": "从不",
+      "never": "从不询问",
       "ask": "询问",
-      "oauth-personal": "OAuth（个人）",
-      "gemini-api-key": "API Key",
+      "oauth-personal": "个人 OAuth",
+      "gemini-api-key": "Gemini API Key",
       "vertex-ai": "Vertex AI",
       "cloud-shell": "Cloud Shell",
-      "untrusted": "不信任",
-      "on-failure": "失败时",
-      "on-request": "请求时",
+      "untrusted": "不信任 (untrusted)",
+      "on-failure": "失败时询问",
+      "on-request": "每次询问",
       "read-only": "只读",
       "workspace-write": "工作区可写",
       "danger-full-access": "完全访问",
@@ -495,8 +504,28 @@
       "diff": "差异",
       "true": "是",
       "false": "否",
-      "disabled": "禁用"
-    }
+      "disabled": "禁用",
+      "auto_edit": "自动编辑 (auto_edit)"
+    },
+    "merge_all_available_skills": "合并所有可用技能",
+    "builtin_product_skills": "内置产品技能",
+    "loop_control.max_steps_per_turn": "单轮最大步数",
+    "loop_control.max_attempts_per_step": "单步最大尝试次数",
+    "general.defaultApprovalMode": "默认审批模式",
+    "general.enableAutoUpdate": "自动更新",
+    "general.maxAttempts": "请求最大尝试次数",
+    "general.sessionRetention.enabled": "会话自动清理",
+    "general.sessionRetention.maxAge": "会话保留时长",
+    "model.maxSessionTurns": "会话最大轮数",
+    "model.compressionThreshold": "上下文压缩阈值",
+    "security.auth.selectedType": "认证方式",
+    "security.folderTrust.enabled": "文件夹信任",
+    "ui.hideBanner": "隐藏启动横幅",
+    "skills.enabled": "启用技能",
+    "hooksConfig.enabled": "启用 hooks",
+    "tools.autoAccept": "自动接受工具调用",
+    "general.checkpointing.enabled": "文件检查点（可回滚）",
+    "plan_mode_reasoning_effort": "计划模式推理强度"
   },
   "about": {
     "desc": "把各 AI CLI 的交互图形化的桌面 IDE",
@@ -588,5 +617,66 @@
     "goalDesc": "持续跟踪一个目标直到任务完成",
     "kimiOnly": "仅 kimi TUI 支持（ACP 未暴露）",
     "unsupported": "该 CLI 不支持模式切换"
+  },
+  "dsh": {
+    "service": "Web 服务",
+    "serviceDesc": "dsh web 服务（对话通道与 Web UI 共用，端口 3080）",
+    "serviceRunning": "运行中",
+    "serviceStopped": "未运行",
+    "servicePort": "监听端口 {{port}}",
+    "stop": "停止",
+    "start": "启动并打开",
+    "openWeb": "打开 Web UI",
+    "credentials": "凭证（dsh 数据目录）",
+    "credentialsDesc": "dsh 凭证服务从此文件读取 API Key",
+    "credentialSet": "已配置（值已隐藏）",
+    "credentialMissing": "未配置 —— 对话会因缺少 DEEPSEEK_API_KEY 失败",
+    "setKey": "设置",
+    "replaceKey": "替换",
+    "clearKey": "清除",
+    "credentialHint": "在此处/账号卡设置的 Key 会同时写入此文件并同步给运行中的 dsh web",
+    "plugins": "插件管理",
+    "pluginsDesc": "dsh 插件即 cordis 插件树条目；安装等价于 dsh plugin --profile <p> add（profile 目录内 pnpm add）",
+    "pluginsLoadFailed": "插件树加载失败（需 dsh 已安装且 profile 已初始化，先启动一次 Web 服务）",
+    "pluginsUser": "用户安装",
+    "pluginsBuiltin": "内置插件（{{count}}）",
+    "uninstall": "卸载",
+    "installPlugin": "安装插件",
+    "installPluginHint": "npm 包名，如 @scope/dsh-plugin-xxx；装完需重启 Web 服务生效",
+    "defaultModel": "默认模型",
+    "defaultModelDesc": "覆盖 agent-default-model 插件的 provider/model（写入 cordis.patch.yml 用户层）",
+    "defaultModelHint": "留空则使用 bundle 内置默认（deepseek-official / deepseek-v4-flash）；改完需重启 Web 服务",
+    "profiles": "Profiles",
+    "profilesDesc": "~/.dsh/profiles 下的启动配置栈；每个 profile 由若干 bundle 层叠而成",
+    "profileNoBundles": "（无 bundle 声明）"
+  },
+  "claude": {
+    "env": "环境变量（env）",
+    "envDesc": "写入 ~/.claude/settings.json 的 env 表；切换供应商（CC Switch）即改这里",
+    "envEmpty": "未设置任何环境变量",
+    "envDelete": "删除该变量",
+    "envAdd": "新增变量",
+    "envValue": "值",
+    "envHide": "隐藏值",
+    "envReveal": "显示值"
+  },
+  "codex": {
+    "providers": "自定义供应商（model_providers）",
+    "providersDesc": "config.toml 中 [model_providers.*] 表（只读视图，编辑请用下方高级编辑器）",
+    "providersEmpty": "未配置自定义供应商"
+  },
+  "kimi": {
+    "automation": "自动化（hooks / 权限规则 / MCP）",
+    "automationDesc": "只读概览；编辑请用下方高级编辑器或 /mcp-config",
+    "hooksCount": "生命周期 hooks：{{count}} 条",
+    "hooksHint": "config.toml 的 [[hooks]] 表（PreToolUse 等事件钩子）",
+    "rulesCount": "权限规则：{{count}} 条",
+    "rulesHint": "config.toml 的 [[permission.rules]] 表（allow/deny/ask 按序匹配）",
+    "mcpEntry": "MCP 服务器在「设置 → MCP」标签页管理",
+    "skillDirs": "额外技能目录",
+    "skillDirsDesc": "extra_skill_dirs：叠加在默认技能目录之上（逗号分隔多个路径）"
+  },
+  "qwen": {
+    "extensions": "已安装扩展"
   }
 }

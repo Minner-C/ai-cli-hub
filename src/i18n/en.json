@@ -31,6 +31,13 @@
       "yesterday": "Yesterday",
       "week": "This week",
       "earlier": "Earlier"
+    },
+    "ungrouped": "Ungrouped",
+    "time": {
+      "justNow": "now",
+      "minutes": "{{n}}m",
+      "hours": "{{n}}h",
+      "days": "{{n}}d"
     }
   },
   "chat": {
@@ -238,7 +245,8 @@
     "high": "High",
     "followsModel": "Thinking effort for this CLI follows the model / global config; per-task override is not supported",
     "unsupported": "This CLI does not support thinking effort settings",
-    "kimiNote": "Applied by temporarily writing kimi global config; affects only this invocation"
+    "kimiNote": "Applied by temporarily writing kimi global config; affects only this invocation",
+    "max": "Max"
   },
   "provider": {
     "title": "Provider",
@@ -369,7 +377,8 @@
     "zcodeName": "GLM (ZCode)",
     "zcodeBadge": "Coming soon",
     "zcodeDesc": "ZCode is a desktop app with no headless CLI mode. Use GLM models via the \"GLM (z.ai)\" entry in Models & Providers (claude CLI + Anthropic-compatible endpoint)",
-    "runHelper": "Run setup helper"
+    "runHelper": "Run setup helper",
+    "openWebUi": "Open Web UI"
   },
   "cliFields": {
     "default_model": "Default model",
@@ -462,7 +471,7 @@
       "minimal": "Minimal",
       "plan": "Plan only",
       "default": "Default (approval)",
-      "auto-edit": "Auto-edit",
+      "auto-edit": "Auto edit",
       "acceptEdits": "Accept edits",
       "bypassPermissions": "Bypass permissions",
       "light": "Light",
@@ -472,15 +481,15 @@
       "custom": "Custom",
       "local": "Local",
       "docker": "Docker",
-      "oauth-personal": "OAuth (personal)",
-      "gemini-api-key": "API Key",
+      "oauth-personal": "Personal OAuth",
+      "gemini-api-key": "Gemini API Key",
       "vertex-ai": "Vertex AI",
       "cloud-shell": "Cloud Shell",
       "untrusted": "Untrusted",
       "on-failure": "On failure",
       "on-request": "On request",
       "never": "Never",
-      "read-only": "Read-only",
+      "read-only": "Read only",
       "workspace-write": "Workspace write",
       "danger-full-access": "Full access",
       "off": "Off",
@@ -495,8 +504,28 @@
       "diff": "Diff",
       "true": "Yes",
       "false": "No",
-      "disabled": "Disabled"
-    }
+      "disabled": "Disabled",
+      "auto_edit": "Auto edit"
+    },
+    "merge_all_available_skills": "Merge all available skills",
+    "builtin_product_skills": "Built-in product skills",
+    "loop_control.max_steps_per_turn": "Max steps per turn",
+    "loop_control.max_attempts_per_step": "Max attempts per step",
+    "general.defaultApprovalMode": "Default approval mode",
+    "general.enableAutoUpdate": "Auto update",
+    "general.maxAttempts": "Max request attempts",
+    "general.sessionRetention.enabled": "Session auto-cleanup",
+    "general.sessionRetention.maxAge": "Session retention max age",
+    "model.maxSessionTurns": "Max session turns",
+    "model.compressionThreshold": "Context compression threshold",
+    "security.auth.selectedType": "Auth type",
+    "security.folderTrust.enabled": "Folder trust",
+    "ui.hideBanner": "Hide banner",
+    "skills.enabled": "Enable skills",
+    "hooksConfig.enabled": "Enable hooks",
+    "tools.autoAccept": "Auto-accept tool calls",
+    "general.checkpointing.enabled": "File checkpointing (rewind)",
+    "plan_mode_reasoning_effort": "Plan-mode reasoning effort"
   },
   "about": {
     "desc": "A desktop IDE that puts a GUI on AI CLIs",
@@ -588,5 +617,66 @@
     "goalDesc": "Keep tracking a goal until done",
     "kimiOnly": "Only available in kimi TUI (not exposed via ACP)",
     "unsupported": "This CLI does not support mode switching"
+  },
+  "dsh": {
+    "service": "Web Service",
+    "serviceDesc": "dsh web service (shared by chat channel and Web UI, port 3080)",
+    "serviceRunning": "Running",
+    "serviceStopped": "Stopped",
+    "servicePort": "Listening on port {{port}}",
+    "stop": "Stop",
+    "start": "Start & Open",
+    "openWeb": "Open Web UI",
+    "credentials": "Credentials (dsh data dir)",
+    "credentialsDesc": "The dsh credentials service reads API keys from this file",
+    "credentialSet": "Configured (value hidden)",
+    "credentialMissing": "Not configured — chat fails without DEEPSEEK_API_KEY",
+    "setKey": "Set",
+    "replaceKey": "Replace",
+    "clearKey": "Clear",
+    "credentialHint": "Keys set here or in the account card are written to this file and synced to the running dsh web",
+    "plugins": "Plugin Management",
+    "pluginsDesc": "dsh plugins are cordis plugin-tree entries; installing equals dsh plugin --profile <p> add (pnpm add inside the profile dir)",
+    "pluginsLoadFailed": "Failed to load the plugin tree (dsh must be installed and the profile initialized — start the web service once)",
+    "pluginsUser": "User-installed",
+    "pluginsBuiltin": "Built-in plugins ({{count}})",
+    "uninstall": "Uninstall",
+    "installPlugin": "Install plugin",
+    "installPluginHint": "npm package name, e.g. @scope/dsh-plugin-xxx; restart the web service to take effect",
+    "defaultModel": "Default Model",
+    "defaultModelDesc": "Overrides the agent-default-model plugin provider/model (written to the cordis.patch.yml user layer)",
+    "defaultModelHint": "Leave empty for the bundle default (deepseek-official / deepseek-v4-flash); restart the web service after changing",
+    "profiles": "Profiles",
+    "profilesDesc": "Boot stacks under ~/.dsh/profiles; each profile is composed of bundle layers",
+    "profileNoBundles": "(no bundles declared)"
+  },
+  "claude": {
+    "env": "Environment Variables (env)",
+    "envDesc": "Written to the env table of ~/.claude/settings.json; provider switching (CC Switch) edits these",
+    "envEmpty": "No environment variables set",
+    "envDelete": "Delete this variable",
+    "envAdd": "Add variable",
+    "envValue": "Value",
+    "envHide": "Hide values",
+    "envReveal": "Reveal values"
+  },
+  "codex": {
+    "providers": "Custom Providers (model_providers)",
+    "providersDesc": "The [model_providers.*] tables in config.toml (read-only; edit via the advanced editor below)",
+    "providersEmpty": "No custom providers configured"
+  },
+  "kimi": {
+    "automation": "Automation (hooks / permission rules / MCP)",
+    "automationDesc": "Read-only overview; edit via the advanced editor below or /mcp-config",
+    "hooksCount": "Lifecycle hooks: {{count}}",
+    "hooksHint": "The [[hooks]] tables in config.toml (PreToolUse etc.)",
+    "rulesCount": "Permission rules: {{count}}",
+    "rulesHint": "The [[permission.rules]] tables in config.toml (allow/deny/ask, first match wins)",
+    "mcpEntry": "MCP servers are managed in \"Settings → MCP\" tab",
+    "skillDirs": "Extra Skill Directories",
+    "skillDirsDesc": "extra_skill_dirs: layered on top of the default skill dirs (comma-separated paths)"
+  },
+  "qwen": {
+    "extensions": "Installed Extensions"
   }
 }
