@@ -111,7 +111,7 @@ export const CLI_FEATURES: Record<CliId, CliFeatures> = {
   qwen: { permission: true, efforts: null, plan: false, goal: false, swarm: false },
   opencode: { permission: false, efforts: null, plan: false, goal: false, swarm: false },
   aider: { permission: false, efforts: null, plan: false, goal: false, swarm: false },
-  pi: { permission: false, efforts: ['off', 'low', 'medium', 'high', 'max'], plan: false, goal: false, swarm: false },
+  pi: { permission: true, efforts: ['off', 'low', 'medium', 'high', 'max'], plan: false, goal: false, swarm: false },
   hermes: { permission: false, efforts: null, plan: false, goal: false, swarm: false },
 };
 
