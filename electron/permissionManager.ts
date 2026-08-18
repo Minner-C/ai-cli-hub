@@ -15,6 +15,8 @@ export function permissionSupport(cli: CliId): PermissionSupport {
       return { supported: true, via: 'args' };
     case 'codex':
       return { supported: true, via: 'args' };
+    case 'pi':
+      return { supported: true, via: 'args' };
     case 'kimi':
       return { supported: true, via: 'config' };
     case 'qwen':
@@ -52,6 +54,10 @@ export function permissionArgs(cli: CliId, mode?: PermissionMode): string[] {
       // codex: --full-auto / --dangerously-bypass-approvals-and-sandbox
       if (mode === 'auto') return ['--full-auto'];
       if (mode === 'yolo') return ['--dangerously-bypass-approvals-and-sandbox'];
+      return [];
+    case 'pi':
+      // pi: --approve 信任项目本地文件（pi 无工具审批模式，信任即权限）
+      if (mode === 'auto' || mode === 'yolo') return ['--approve'];
       return [];
     default:
       return [];
