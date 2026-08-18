@@ -36,12 +36,14 @@ Built with Electron + React + TypeScript.
 
 | CLI | Channel | Notes |
 | --- | --- | --- |
-| Kimi Code | **ACP** long-lived connection (default) / headless fallback | token-level streaming, thinking, permission, plan |
+| Kimi Code | **ACP** long-lived connection (default) / headless fallback | token-level streaming, thinking, permission, plan/goal modes |
 | Claude Code | headless `stream-json` (bidirectional) | permission prompts via `--permission-prompt-tool stdio` control protocol |
+| DeepSeek Harness (`dsh`) | **RPC + WebSocket** (reverse-engineered client protocol) | continuous sessions, streaming + reasoning, permission/thinking controls, plugin management |
+| Pi | headless NDJSON (`--mode json`) | thinking depth, custom providers (Volcano/Ark etc. via `~/.pi/agent/models.json`) |
 | Gemini CLI | headless json | untested on maintainer's machine |
 | Codex CLI | headless json | untested |
 | Qwen Code | headless json | auth via Coding Plan API key |
-| OpenCode / Aider | headless text | untested |
+| OpenCode / Aider / Hermes | headless text | untested |
 
 Not-installed CLIs are shown as unavailable and never block the rest. One-click install for npm/pip-based CLIs is built in.
 
@@ -105,6 +107,7 @@ MIT
 - **聊天界面而非终端模拟器**：流式 Markdown、代码高亮、工具调用卡片（编辑 diff 视图、命令终端块、图片内联预览）、可折叠的思考流
 - **真流式（Kimi 走 ACP 协议）**：token 级思考/正文流、工具运行全生命周期、计划更新；其余 CLI 走 headless `stream-json`
 - **轮次定位刻度轨**：聊天区右缘刻度，悬停展开轮次标题，点击跳转
+- **支持 10 个 CLI**：Kimi Code（ACP 全能力）、Claude Code、DeepSeek Harness（RPC 全能力）、Pi、Gemini、Codex、Qwen、OpenCode、Aider、Hermes
 - **任务中切换 CLI**：自动生成会话摘要、预览确认后注入新 CLI 首条消息
 - **统一模型列表**：GLM / DeepSeek / 千问 / Moonshot 等添加为一等模型，选择即自动路由到对应 CLI 与端点（类似 CC Switch，但不改写 CLI 配置文件）
 - **按 CLI 适配的权限模式**：默认（应用内审批卡片）/ 自动 / 全部允许

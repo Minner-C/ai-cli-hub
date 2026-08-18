@@ -35,6 +35,9 @@ export function effortSupport(cli: CliId): EffortSupport {
     case 'dsh':
       // 经 dsh web RPC session.selectModel 的 reasoningEffort 下发（见 dshChat.applySessionControls）
       return { supported: true };
+    case 'pi':
+      // pi --thinking <level>（off/minimal/low/medium/high/xhigh/max）
+      return { supported: true };
     case 'kimi':
       // 通过 spawn 前临时改写 config.toml [thinking] 生效（见 kimiThinking.ts）
       return { supported: true, note: 'effort.kimiNote' };
@@ -54,5 +57,6 @@ export function effortEnv(cli: CliId, level?: EffortLevel): Record<string, strin
 export function effortArgs(cli: CliId, level?: EffortLevel): string[] {
   if (!level) return [];
   if (cli === 'codex') return ['-c', `model_reasoning_effort=${CODEX_EFFORT[level]}`];
+  if (cli === 'pi') return ['--thinking', level];
   return [];
 }
